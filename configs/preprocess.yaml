@@ -1,0 +1,9 @@
+eubucco:
+  input_dir: data/raw/eubucco
+  dissolve_by_id: false
+
+tiles:
+  input_dir: data/raw/bayern/dop20
+
+outputs:
+  matched_buildings_file: data/interim/matched_buildings.parquet

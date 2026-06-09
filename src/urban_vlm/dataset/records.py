@@ -1,0 +1,177 @@
+import hashlib
+from typing import Any
+
+import pandas as pd
+import rasterio
+
+from urban_vlm.dataset.geometry import (
+    building_geometry_for_crop,
+    crop_spec_from_pixel_bbox,
+    geometry_pixel_bbox,
+    geometry_to_pixel_geometry,
+)
+from urban_vlm.dataset.schema import BuildingField
+from urban_vlm.eubucco.schema import EubuccoField
+
+
+def build_jsonl_record(
+    row: pd.Series,
+    *,
+    source_crs: str,
+    crop_padding_ratio: float,
+    min_padding_px: int = 0,
+    max_padding_px: int | None = None,
+) -> dict[str, Any]:
+    tile_path = _require_value(row, str(BuildingField.TILE_PATH))
+    tile_id = _get_optional(row, str(BuildingField.TILE_ID))
+
+    geometry = row.geometry
+
+    with rasterio.open(tile_path) as src:
+        transform = src.transform
+        image_width = src.width
+        image_height = src.height
+
+    tile_pixel_geometry = geometry_to_pixel_geometry(geometry, transform)
+    tile_pixel_bbox = geometry_pixel_bbox(tile_pixel_geometry)
+
+    crop_spec = crop_spec_from_pixel_bbox(
+        tile_pixel_bbox,
+        padding_ratio=crop_padding_ratio,
+        min_padding_px=min_padding_px,
+        max_padding_px=max_padding_px,
+        image_width=image_width,
+        image_height=image_height,
+    )
+
+    building_id = str(row[str(EubuccoField.id)])
+
+    record_id = _make_record_id(
+        building_id=building_id,
+        tile_id=str(tile_id) if tile_id is not None else None,
+        crop_bounds=crop_spec.bounds,
+    )
+
+    building = build_building_record(
+        row,
+        source_crs=source_crs,
+        transform=transform,
+        crop_bounds=crop_spec.bounds,
+    )
+
+    record: dict[str, Any] = {
+        "id": record_id,
+        "image": tile_path,
+        "crop": {
+            "type": "single",
+            "bounds": crop_spec.bounds,
+            "width": crop_spec.width,
+            "height": crop_spec.height,
+        },
+        "buildings": [
+            building,
+        ],
+    }
+
+    return record
+
+
+def build_building_record(
+    row: pd.Series,
+    *,
+    source_crs: str,
+    transform,
+    crop_bounds: list[int],
+) -> dict[str, Any]:
+    geometry = row.geometry
+    centroid = geometry.centroid
+
+    building_pixel_geometry = building_geometry_for_crop(
+        geometry,
+        transform,
+        crop_bounds=crop_bounds,
+    )
+
+    return {
+        "building_id": str(row[str(EubuccoField.id)]),
+        "geometry": {
+            "footprint": building_pixel_geometry.footprint,
+            "bbox": building_pixel_geometry.bbox,
+        },
+        "location": {
+            "crs": source_crs,
+            "center": [float(centroid.x), float(centroid.y)],
+        },
+        "attributes": {
+            "region_id": _get_optional(row, str(EubuccoField.region_id)),
+            "city_id": _get_optional(row, str(EubuccoField.city_id)),
+            "type": _get_optional(row, str(EubuccoField.type)),
+            "subtype": _get_optional(row, str(EubuccoField.subtype)),
+            "height": _get_optional_number(row, str(EubuccoField.height)),
+            "floors": _get_optional_number(row, str(EubuccoField.floors)),
+            "construction_year": _get_optional_number(
+                row,
+                str(EubuccoField.construction_year),
+            ),
+        },
+    }
+
+
+def _make_record_id(
+    *,
+    building_id: str,
+    tile_id: str | None,
+    crop_bounds: list[int],
+    prefix: str = "rec",
+) -> str:
+    key = "|".join(
+        [
+            building_id,
+            tile_id or "",
+            ",".join(str(value) for value in crop_bounds),
+        ]
+    )
+
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+
+    return f"{prefix}_{digest}"
+
+
+def _require_value(row: pd.Series, column: str) -> str:
+    if column not in row:
+        raise KeyError(f"Missing required column: {column!r}")
+
+    value = row[column]
+
+    if _is_missing(value):
+        raise ValueError(f"Missing required value for column: {column!r}")
+
+    return str(value)
+
+
+def _get_optional(row: pd.Series, column: str):
+    if column not in row:
+        return None
+
+    value = row[column]
+
+    if _is_missing(value):
+        return None
+
+    return value
+
+
+def _get_optional_number(row: pd.Series, column: str):
+    value = _get_optional(row, column)
+
+    if value is None:
+        return None
+
+    return float(value)
+
+
+def _is_missing(value) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except ValueError:
+        return False

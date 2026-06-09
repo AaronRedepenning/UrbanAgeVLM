@@ -1,0 +1,6 @@
+input_file: data/interim/matched_buildings.parquet
+output_file: data/processed/buildings.jsonl
+max_records: null
+
+crop:
+  padding_ratio: 0.5
