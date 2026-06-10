@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
-import rasterio
 from affine import Affine
 
 from urban_vlm.dataset.geometry import (
@@ -100,6 +99,11 @@ def build_building_record(
         crop_bounds=crop_bounds,
     )
 
+    construction_year = _get_optional_number(
+        row,
+        str(EubuccoField.construction_year),
+    )
+
     return {
         "building_id": str(row[str(EubuccoField.id)]),
         "geometry": {
@@ -117,10 +121,8 @@ def build_building_record(
             "subtype": _get_optional(row, str(EubuccoField.subtype)),
             "height": _get_optional_number(row, str(EubuccoField.height)),
             "floors": _get_optional_number(row, str(EubuccoField.floors)),
-            "construction_year": _get_optional_number(
-                row,
-                str(EubuccoField.construction_year),
-            ),
+            "construction_year": construction_year,
+            "construction_decade": _construction_decade(construction_year),
         },
     }
 
@@ -143,6 +145,18 @@ def _make_record_id(
     digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
 
     return f"{prefix}_{digest}"
+
+
+def _construction_decade(
+    year: int | float | str | None,
+) -> int | None:
+    if year is None or pd.isna(year):
+        return None
+
+    year_int = int(year)
+    decade = year_int // 10 * 10
+
+    return decade
 
 
 def _require_value(row: pd.Series, column: str) -> str:
