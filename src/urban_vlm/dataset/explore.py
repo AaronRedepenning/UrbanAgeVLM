@@ -61,10 +61,9 @@ def explore_jsonl_dataset(
         figures_dir / "crop_area_histogram.png",
     )
 
-    save_sample_debug_images(
+    write_sample_crop_groups(
         records,
         samples_dir=samples_dir,
-        n_samples=n_samples,
         seed=seed,
     )
 
@@ -312,28 +311,194 @@ def plot_crop_area_histogram(
     plt.close()
 
 
-def save_sample_debug_images(
+def write_sample_crop_groups(
     records: list[dict[str, Any]],
     *,
-    samples_dir: Path,
-    n_samples: int,
+    samples_dir: str | Path,
+    n_per_group: int = 25,
+    seed: int = 42,
+) -> dict[str, int]:
+    samples_dir = Path(samples_dir)
+    samples_dir.mkdir(parents=True, exist_ok=True)
+
+    df = records_to_dataframe(records)
+
+    groups: dict[str, pd.DataFrame] = {
+        "random": sample_random(df, n=n_per_group, seed=seed),
+        "oldest": sample_oldest(df, n=n_per_group),
+        "newest": sample_newest(df, n=n_per_group),
+        "largest_crops": sample_largest_crops(df, n=n_per_group),
+        "smallest_crops": sample_smallest_crops(df, n=n_per_group),
+        # "clipped": sample_clipped(df, n=n_per_group, seed=seed),
+        # "edge_cases": sample_edge_cases(df, n=n_per_group),
+    }
+
+    written_counts: dict[str, int] = {}
+
+    record_lookup = {record["id"]: record for record in records}
+
+    for group_name, group_df in groups.items():
+        group_dir = samples_dir / group_name
+        group_dir.mkdir(parents=True, exist_ok=True)
+
+        count = 0
+
+        for i, row in enumerate(group_df.itertuples(index=False)):
+            record_id = row.id
+            record = record_lookup.get(record_id)
+
+            if record is None:
+                continue
+
+            filename = f"{i:04d}_{safe_filename(record_id)}.png"
+            output_path = group_dir / filename
+
+            title = make_sample_title(record, group_name=group_name)
+
+            try:
+                save_crop_debug_image(
+                    record,
+                    output_path,
+                    title=title,
+                )
+                count += 1
+            except Exception as exc:
+                logger.warning(
+                    "Failed to render sample crop %s in group %s: %s",
+                    record_id,
+                    group_name,
+                    exc,
+                )
+
+        written_counts[group_name] = count
+        logger.info("Wrote %s sample crops for group %s.", count, group_name)
+
+    return written_counts
+
+
+def sample_random(df: pd.DataFrame, *, n: int, seed: int) -> pd.DataFrame:
+    if df.empty:
+        return df
+
+    return df.sample(
+        n=min(n, len(df)),
+        random_state=seed,
+    )
+
+
+def sample_oldest(df: pd.DataFrame, *, n: int) -> pd.DataFrame:
+    valid = df.dropna(subset=["construction_year"])
+
+    return valid.sort_values(
+        ["construction_year", "id"],
+        ascending=[True, True],
+    ).head(n)
+
+
+def sample_newest(df: pd.DataFrame, *, n: int) -> pd.DataFrame:
+    valid = df.dropna(subset=["construction_year"])
+
+    return valid.sort_values(
+        ["construction_year", "id"],
+        ascending=[False, True],
+    ).head(n)
+
+
+def sample_largest_crops(df: pd.DataFrame, *, n: int) -> pd.DataFrame:
+    valid = df.dropna(subset=["crop_area"])
+
+    return valid.sort_values(
+        ["crop_area", "id"],
+        ascending=[False, True],
+    ).head(n)
+
+
+def sample_smallest_crops(df: pd.DataFrame, *, n: int) -> pd.DataFrame:
+    valid = df.dropna(subset=["crop_area"])
+
+    valid = valid[valid["crop_area"] > 0]
+
+    return valid.sort_values(
+        ["crop_area", "id"],
+        ascending=[True, True],
+    ).head(n)
+
+
+def sample_clipped(
+    df: pd.DataFrame,
+    *,
+    n: int,
     seed: int,
-) -> None:
-    rng = random.Random(seed)
+) -> pd.DataFrame:
+    clipped = df[df["crop_clipped"]].copy()
 
-    sample_records = records.copy()
-    rng.shuffle(sample_records)
-    sample_records = sample_records[: min(n_samples, len(sample_records))]
+    if clipped.empty:
+        return clipped
 
-    for i, record in enumerate(sample_records):
-        record_id = record.get("id", f"record_{i}")
-        output_path = samples_dir / f"{i:04d}_{record_id}.png"
+    return clipped.sample(
+        n=min(n, len(clipped)),
+        random_state=seed,
+    )
 
-        try:
-            save_crop_debug_image(record, output_path)
-        except Exception as exc:
-            logger.warning(
-                "Failed to render sample crop for record %s: %s",
-                record_id,
-                exc,
-            )
+
+def sample_edge_cases(df: pd.DataFrame, *, n: int) -> pd.DataFrame:
+    """
+    Pull examples likely to reveal bugs:
+    - very small crops
+    - very large crops
+    - very old buildings
+    - very new buildings
+    - clipped crops
+    """
+    frames: list[pd.DataFrame] = []
+
+    if not df.empty:
+        frames.append(sample_smallest_crops(df, n=max(1, n // 5)))
+        frames.append(sample_largest_crops(df, n=max(1, n // 5)))
+        frames.append(sample_oldest(df, n=max(1, n // 5)))
+        frames.append(sample_newest(df, n=max(1, n // 5)))
+        frames.append(df[df["crop_clipped"]].head(max(1, n // 5)))
+
+    if not frames:
+        return df.head(0)
+
+    out = pd.concat(frames, ignore_index=True)
+    out = out.drop_duplicates(subset=["id"])
+
+    return out.head(n)
+
+
+def make_sample_title(
+    record: dict[str, Any],
+    *,
+    group_name: str,
+) -> str:
+    building = record.get("buildings", [{}])[0]
+    attrs = building.get("attributes", {})
+    crop = record.get("crop", {})
+
+    year = attrs.get("construction_year")
+    decade = attrs.get("construction_decade_label") or attrs.get("construction_decade")
+    building_type = attrs.get("type")
+    subtype = attrs.get("subtype")
+
+    parts = [
+        group_name,
+        f"id={record.get('id')}",
+        f"year={year}",
+        f"decade={decade}",
+        f"type={building_type}",
+        f"subtype={subtype}",
+        f"crop={crop.get('width')}x{crop.get('height')}",
+    ]
+
+    if crop.get("clipped"):
+        parts.append(f"clipped={','.join(crop.get('clip_sides', []))}")
+
+    return " | ".join(str(part) for part in parts if part is not None)
+
+
+def safe_filename(value: str) -> str:
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
+
+    return "".join(char if char in allowed else "_" for char in value)
