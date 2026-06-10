@@ -7,7 +7,7 @@ from shapely.geometry.base import BaseGeometry
 from shapely.ops import transform as shapely_transform
 
 PixelBounds = list[int]
-PixelPoint = list[float]
+PixelPoint = list[int]
 PixelRing = list[PixelPoint]
 
 
@@ -183,4 +183,4 @@ def building_geometry_for_crop(
 
 
 def _polygon_exterior_to_points(polygon: Polygon) -> PixelRing:
-    return [[float(x), float(y)] for x, y in polygon.exterior.coords]
+    return [[int(x), int(y)] for x, y in polygon.exterior.coords]

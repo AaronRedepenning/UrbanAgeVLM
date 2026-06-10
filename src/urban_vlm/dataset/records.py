@@ -99,7 +99,7 @@ def build_building_record(
         crop_bounds=crop_bounds,
     )
 
-    construction_year = _get_optional_number(
+    construction_year = _get_optional(
         row,
         str(EubuccoField.construction_year),
     )
@@ -119,10 +119,11 @@ def build_building_record(
             "city_id": _get_optional(row, str(EubuccoField.city_id)),
             "type": _get_optional(row, str(EubuccoField.type)),
             "subtype": _get_optional(row, str(EubuccoField.subtype)),
-            "height": _get_optional_number(row, str(EubuccoField.height)),
-            "floors": _get_optional_number(row, str(EubuccoField.floors)),
+            "height": _get_optional(row, str(EubuccoField.height)),
+            "floors": _get_optional(row, str(EubuccoField.floors)),
             "construction_year": construction_year,
             "construction_decade": _construction_decade(construction_year),
+            "area_m2": geometry.area,
         },
     }
 
@@ -178,15 +179,6 @@ def _get_optional(row: pd.Series, column: str):
         return None
 
     return value
-
-
-def _get_optional_number(row: pd.Series, column: str):
-    value = _get_optional(row, column)
-
-    if value is None:
-        return None
-
-    return float(value)
 
 
 def _is_missing(value) -> bool:

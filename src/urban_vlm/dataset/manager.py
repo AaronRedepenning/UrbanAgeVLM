@@ -83,13 +83,11 @@ def prepare_jsonl_dataset(cfg: dict) -> int:
                         raster_crs=raster.crs,
                     )
 
-                    tile_source_crs = str(tile_buildings.crs)
-
                     for _, row in tile_buildings.iterrows():
                         record = build_jsonl_record(
                             row,
                             raster=raster,
-                            source_crs=tile_source_crs,
+                            source_crs=tile_buildings.crs.name,
                             crop_padding_ratio=crop_padding_ratio,
                         )
 
