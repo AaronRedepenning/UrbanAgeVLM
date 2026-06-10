@@ -1,8 +1,10 @@
 import hashlib
+from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
 import rasterio
+from affine import Affine
 
 from urban_vlm.dataset.geometry import (
     building_geometry_for_crop,
@@ -14,25 +16,31 @@ from urban_vlm.dataset.schema import BuildingField
 from urban_vlm.eubucco.schema import EubuccoField
 
 
+@dataclass(frozen=True)
+class RasterInfo:
+    path: str
+    transform: Affine
+    width: int
+    height: int
+    crs: str
+
+
 def build_jsonl_record(
     row: pd.Series,
     *,
+    raster: RasterInfo,
     source_crs: str,
     crop_padding_ratio: float,
     min_padding_px: int = 0,
     max_padding_px: int | None = None,
 ) -> dict[str, Any]:
-    tile_path = _require_value(row, str(BuildingField.TILE_PATH))
     tile_id = _get_optional(row, str(BuildingField.TILE_ID))
-
     geometry = row.geometry
 
-    with rasterio.open(tile_path) as src:
-        transform = src.transform
-        image_width = src.width
-        image_height = src.height
-
-    tile_pixel_geometry = geometry_to_pixel_geometry(geometry, transform)
+    tile_pixel_geometry = geometry_to_pixel_geometry(
+        geometry,
+        raster.transform,
+    )
     tile_pixel_bbox = geometry_pixel_bbox(tile_pixel_geometry)
 
     crop_spec = crop_spec_from_pixel_bbox(
@@ -40,8 +48,8 @@ def build_jsonl_record(
         padding_ratio=crop_padding_ratio,
         min_padding_px=min_padding_px,
         max_padding_px=max_padding_px,
-        image_width=image_width,
-        image_height=image_height,
+        image_width=raster.width,
+        image_height=raster.height,
     )
 
     building_id = str(row[str(EubuccoField.id)])
@@ -55,13 +63,13 @@ def build_jsonl_record(
     building = build_building_record(
         row,
         source_crs=source_crs,
-        transform=transform,
+        transform=raster.transform,
         crop_bounds=crop_spec.bounds,
     )
 
     record: dict[str, Any] = {
         "id": record_id,
-        "image": tile_path,
+        "image": raster.path,
         "crop": {
             "type": "single",
             "bounds": crop_spec.bounds,
