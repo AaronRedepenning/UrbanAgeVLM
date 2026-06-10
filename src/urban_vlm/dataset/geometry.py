@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from affine import Affine
+from pyproj import Transformer
 from shapely.affinity import translate
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.geometry.base import BaseGeometry
@@ -22,6 +23,18 @@ class CropSpec:
 class BuildingPixelGeometry:
     footprint: list[PixelRing]
     bbox: PixelBounds
+
+
+def transform_point(
+    x: float,
+    y: float,
+    *,
+    source_crs: str,
+    target_crs: str = "EPSG:4326",
+) -> list[float]:
+    transformer = Transformer.from_crs(source_crs, target_crs, always_xy=True)
+    lon, lat = transformer.transform(x, y)
+    return [float(lon), float(lat)]
 
 
 def geometry_to_pixel_geometry(

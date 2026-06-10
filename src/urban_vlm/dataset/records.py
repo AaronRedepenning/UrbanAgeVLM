@@ -10,6 +10,7 @@ from urban_vlm.dataset.geometry import (
     crop_spec_from_pixel_bbox,
     geometry_pixel_bbox,
     geometry_to_pixel_geometry,
+    transform_point,
 )
 from urban_vlm.dataset.schema import BuildingField
 from urban_vlm.eubucco.schema import EubuccoField
@@ -111,8 +112,10 @@ def build_building_record(
             "bbox": building_pixel_geometry.bbox,
         },
         "location": {
-            "crs": source_crs,
-            "center": [float(centroid.x), float(centroid.y)],
+            "crs": "EPSG:4326",
+            "center": transform_point(
+                centroid.x, centroid.y, source_crs=source_crs, target_crs="EPSG:4326"
+            ),
         },
         "attributes": {
             "region_id": _get_optional(row, str(EubuccoField.region_id)),
