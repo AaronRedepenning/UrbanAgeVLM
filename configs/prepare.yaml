@@ -1,5 +1,7 @@
 input_file: data/interim/matched_buildings.parquet
-output_file: data/processed/buildings.jsonl
+output_file: data/processed/single_buildings.jsonl
+
+require_year: True
 max_records: null
 
 crop:

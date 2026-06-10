@@ -5,7 +5,7 @@ from urban_vlm.dataset.explore import explore_jsonl_dataset
 
 def main() -> None:
     explore_jsonl_dataset(
-        Path("data/processed/buildings.jsonl"),
+        Path("data/processed/single_buildings.jsonl"),
         report_json=Path("outputs/reports/data_summary.json"),
         figures_dir=Path("outputs/figures"),
         samples_dir=Path("outputs/figures/sample_crops"),

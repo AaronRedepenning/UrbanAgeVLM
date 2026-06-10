@@ -15,6 +15,7 @@ from rich.progress import (
 from urban_vlm.dataset.jsonl import write_jsonl_record
 from urban_vlm.dataset.records import RasterInfo, build_jsonl_record
 from urban_vlm.dataset.schema import BuildingField
+from urban_vlm.eubucco.schema import EubuccoField
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,10 @@ logger = logging.getLogger(__name__)
 def prepare_jsonl_dataset(cfg: dict) -> int:
     input_file = Path(cfg["input_file"])
     output_file = Path(cfg["output_file"])
+
+    require_year = cfg.get("require_year", False)
     max_records = cfg.get("max_records", None)
+
     crop_cfg = cfg["crop"]
     crop_padding_ratio = crop_cfg["padding_ratio"]
 
@@ -31,6 +35,9 @@ def prepare_jsonl_dataset(cfg: dict) -> int:
 
     if buildings.crs is None:
         raise ValueError(f"Matched buildings file has no CRS: {input_file}")
+
+    if require_year:
+        buildings = buildings[buildings[EubuccoField.construction_year].notna()].copy()
 
     if max_records is not None:
         buildings = buildings.head(max_records).copy()

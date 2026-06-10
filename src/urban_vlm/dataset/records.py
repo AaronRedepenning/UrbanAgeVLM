@@ -132,7 +132,6 @@ def _make_record_id(
     building_id: str,
     tile_id: str | None,
     crop_bounds: list[int],
-    prefix: str = "rec",
 ) -> str:
     key = "|".join(
         [
@@ -142,9 +141,7 @@ def _make_record_id(
         ]
     )
 
-    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
-
-    return f"{prefix}_{digest}"
+    return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
 
 
 def _construction_decade(
