@@ -6,12 +6,22 @@ eubucco:
   out_dir: data/raw/eubucco
   version: v0.2
   nuts_ids:
-    - DE21
+    - DE21 # Oberbayern
+    - DE22 # Niederbayern
+    - DE23 # Oberpfalz
+    - DE24 # Oberfranken
+    - DE25 # Mittelfranken
+    - DE26 # Unterfranken
+    - DE27 # Schwaben
 
 bayern:
   enabled: true
   out_dir: data/raw/bayern/dop20
-  meta4_url: https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09162.meta4
+  meta4_urls:
+    - https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09161000.meta4 # Ingolstadt
+    - https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09162000.meta4 # München
+    - https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09163000.meta4 # Rosenheim
+    - https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09761000.meta4 # Augsburg
 
 download:
   overwrite: false

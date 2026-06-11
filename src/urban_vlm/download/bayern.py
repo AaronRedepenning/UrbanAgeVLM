@@ -16,13 +16,13 @@ def download_bayern(cfg: dict) -> None:
     overwrite = download_cfg.get("overwrite", False)
     timeout_seconds = download_cfg.get("timeout_seconds", 60)
 
-    meta4_url = bayern_cfg["meta4_url"]
-    meta4_path = output_dir / make_meta4_filename(meta4_url)
+    for meta4_url in bayern_cfg["meta4_urls"]:
+        meta4_path = output_dir / make_meta4_filename(meta4_url)
 
-    download_meta4(
-        meta4_url,
-        meta4_path=meta4_path,
-        output_dir=output_dir,
-        overwrite=overwrite,
-        timeout_seconds=timeout_seconds,
-    )
+        download_meta4(
+            meta4_url,
+            meta4_path=meta4_path,
+            output_dir=output_dir,
+            overwrite=overwrite,
+            timeout_seconds=timeout_seconds,
+        )
