@@ -5,3 +5,4 @@ class BuildingField(StrEnum):
     TILE_ID = "tile_id"
     TILE_PATH = "tile_path"
     PART_COUNT = "part_count"
+    AREA = "area_m2"

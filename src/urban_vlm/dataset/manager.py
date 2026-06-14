@@ -12,23 +12,17 @@ from rich.progress import (
     TimeRemainingColumn,
 )
 
+from urban_vlm.dataset.config import PrepareDataConfig
 from urban_vlm.dataset.jsonl import write_jsonl_record
 from urban_vlm.dataset.records import RasterInfo, build_jsonl_record
 from urban_vlm.dataset.schema import BuildingField
-from urban_vlm.eubucco.schema import EubuccoField
+from urban_vlm.dataset.splits import split_jsonl_by_group
 
 logger = logging.getLogger(__name__)
 
 
-def prepare_jsonl_dataset(cfg: dict) -> int:
-    input_file = Path(cfg["input_file"])
-    output_file = Path(cfg["output_file"])
-
-    require_year = cfg.get("require_year", False)
-    max_records = cfg.get("max_records", None)
-
-    crop_cfg = cfg["crop"]
-    crop_padding_ratio = crop_cfg["padding_ratio"]
+def prepare_jsonl_dataset(cfg: PrepareDataConfig) -> int:
+    input_file = cfg.inputs.matched_buildings_file
 
     buildings = gpd.read_parquet(input_file)
     buildings = buildings[buildings[BuildingField.TILE_PATH].notna()].copy()
@@ -36,9 +30,7 @@ def prepare_jsonl_dataset(cfg: dict) -> int:
     if buildings.crs is None:
         raise ValueError(f"Matched buildings file has no CRS: {input_file}")
 
-    if require_year:
-        buildings = buildings[buildings[EubuccoField.construction_year].notna()].copy()
-
+    max_records = cfg.records.max_records
     if max_records is not None:
         buildings = buildings.head(max_records).copy()
 
@@ -59,6 +51,9 @@ def prepare_jsonl_dataset(cfg: dict) -> int:
         TaskProgressColumn(),
         TimeRemainingColumn(),
     )
+
+    output_file = cfg.outputs.all_jsonl
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
     with progress:
         task = progress.add_task("Writing JSONL", total=total)
@@ -88,7 +83,7 @@ def prepare_jsonl_dataset(cfg: dict) -> int:
                             row,
                             raster=raster,
                             source_crs=tile_buildings.crs.name,
-                            crop_padding_ratio=crop_padding_ratio,
+                            crop_padding_ratio=cfg.crop.padding_ratio,
                         )
 
                         write_jsonl_record(f, record)
@@ -101,6 +96,19 @@ def prepare_jsonl_dataset(cfg: dict) -> int:
         count,
         output_file,
     )
+
+    if cfg.split.enabled:
+        split_jsonl_by_group(
+            input_jsonl=cfg.outputs.all_jsonl,
+            train_jsonl=cfg.outputs.train_jsonl,
+            val_jsonl=cfg.outputs.val_jsonl,
+            test_jsonl=cfg.outputs.test_jsonl,
+            group_key=cfg.split.group_key,
+            train_fraction=cfg.split.train,
+            val_fraction=cfg.split.val,
+            test_fraction=cfg.split.test,
+            seed=cfg.split.seed,
+        )
 
     return count
 

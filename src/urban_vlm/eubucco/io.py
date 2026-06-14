@@ -12,6 +12,7 @@ from urban_vlm.eubucco.schema import (
     coerce_numeric_columns,
     require_columns,
 )
+from urban_vlm.utils import read_geodataframe
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,10 @@ def read_eubucco_buildings(
     aoi: BaseGeometry | gpd.GeoSeries | gpd.GeoDataFrame | str | Path | None = None,
     aoi_crs: str | None = None,
     target_crs: str = "EPSG:25832",
-    dissolve_by_id: bool = True,
+    dissolve_by_id: bool = False,
+    require_construction_year: bool = False,
+    min_area_m2: float | None = None,
+    max_area_m2: float | None = None,
 ) -> gpd.GeoDataFrame:
     """
     Read EUBUCCO building data using the project's required EUBUCCO schema.
@@ -50,6 +54,10 @@ def read_eubucco_buildings(
     dissolve_by_id:
         If true, IDs ending in part suffixes like ``-1`` or ``-2`` are collapsed
         to the base ID and geometries are dissolved.
+    min_area_m2
+        Minumum allowd building area.
+    max_area_m2
+        Maximum allowed building area.
 
     Returns
     -------
@@ -58,11 +66,10 @@ def read_eubucco_buildings(
     """
     path = Path(path)
 
-    buildings = _read_geodataframe(
+    buildings = read_geodataframe(
         path,
         columns=ALL_REQUIRED_FIELDS,
     )
-
     require_columns(buildings, ALL_REQUIRED_FIELDS)
 
     buildings = buildings.to_crs(target_crs)
@@ -77,24 +84,19 @@ def read_eubucco_buildings(
         )
 
     if dissolve_by_id:
-        buildings = dissolve_building_parts_by_id(buildings)
+        buildings = _dissolve_building_parts_by_id(buildings)
     else:
         buildings = buildings.copy()
         buildings[str(BuildingField.PART_COUNT)] = 1
 
-    return buildings.reset_index(drop=True)
+    if require_construction_year:
+        buildings = buildings[buildings[EubuccoField.construction_year].notna()].copy()
 
+    buildings = _filter_by_area(
+        buildings, min_area_m2=min_area_m2, max_area_m2=max_area_m2
+    )
 
-def _read_geodataframe(path: Path, *, columns: list[str]) -> gpd.GeoDataFrame:
-    suffix = path.suffix.lower()
-
-    if suffix in {".parquet", ".geoparquet"}:
-        return gpd.read_parquet(path, columns=columns)
-
-    if suffix in {".gpkg", ".geojson", ".json", ".shp"}:
-        return gpd.read_file(path, columns=columns)
-
-    raise ValueError(f"Unsupported EUBUCCO file type: {path.suffix}")
+    return buildings
 
 
 def _clean_basic_eubucco(buildings: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -143,7 +145,7 @@ def _clean_basic_eubucco(buildings: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return buildings
 
 
-def dissolve_building_parts_by_id(
+def _dissolve_building_parts_by_id(
     buildings: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
     """
@@ -351,3 +353,22 @@ def _union_geometries(gdf: gpd.GeoDataFrame) -> BaseGeometry:
         return geometry.union_all()
 
     return geometry.unary_union
+
+
+def _filter_by_area(
+    buildings: gpd.GeoDataFrame,
+    *,
+    min_area_m2: float | None = None,
+    max_area_m2: float | None = None,
+) -> gpd.GeoDataFrame:
+    buildings = buildings.copy()
+    area_column = str(BuildingField.AREA)
+    buildings[area_column] = buildings.geometry.area
+
+    if min_area_m2 is not None:
+        buildings = buildings[buildings[area_column] >= min_area_m2]
+
+    if max_area_m2 is not None:
+        buildings = buildings[buildings[area_column] <= max_area_m2]
+
+    return buildings.reset_index(drop=True)

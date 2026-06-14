@@ -1,9 +1,18 @@
 eubucco:
   input_dir: data/raw/eubucco
+  file_glob: "**/*.parquet"
   dissolve_by_id: false
+  require_construction_year: true
+  min_area_m2: 20
+  max_area_m2: null
 
 tiles:
   input_dir: data/raw/bayern/dop20
+  file_glob: "**/*.tif"
+  rebuild_tile_index: false
 
 outputs:
-  matched_buildings_file: data/interim/matched_buildings.parquet
+  cleaned_buildings_file: data/interim/eubucco/buildings_clean.parquet
+  tile_index_file: data/interim/bayern/tile_index.parquet
+  matched_buildings_file: data/interim/matches/matched_buildings.parquet
+  summary_file: data/interim/matches/preprocess_summary.json

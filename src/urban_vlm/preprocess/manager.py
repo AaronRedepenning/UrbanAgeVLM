@@ -1,18 +1,19 @@
 import logging
-from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 
 from urban_vlm.eubucco.io import read_eubucco_buildings
+from urban_vlm.preprocess.config import EubuccoPreprocessConfig, PreprocessConfig
 from urban_vlm.preprocess.match import match_buildings_to_tiles
 from urban_vlm.preprocess.tiles import build_tile_index
+from urban_vlm.utils import write_geodataframe
 
 logger = logging.getLogger(__name__)
 
 
 def preprocess_buildings_and_match_tiles(
-    cfg: dict,
+    cfg: PreprocessConfig,
 ) -> gpd.GeoDataFrame:
     """
     Full preprocessing pipeline.
@@ -23,44 +24,27 @@ def preprocess_buildings_and_match_tiles(
     """
     logger.info("Starting preprocessing pipeline.")
 
-    tiles = _get_tile_index(cfg)
-    buildings = _read_all_eubucco_buildings(cfg, tiles)
+    tiles = build_tile_index(cfg.tiles)
+    write_geodataframe(tiles, cfg.outputs.tile_index_file)
 
-    matched = match_buildings_to_tiles(
-        buildings=buildings,
-        tiles=tiles,
-    )
+    buildings = _read_all_eubucco_buildings(cfg.eubucco, tiles)
+    write_geodataframe(tiles, cfg.outputs.cleaned_buildings_file)
 
-    outputs_cfg = cfg["outputs"]
-    matched_buildings_file = Path(outputs_cfg["matched_buildings_file"])
-    _write_geodataframe(matched, matched_buildings_file)
-
-    logger.info(
-        "Wrote matched buildings to %s.",
-        matched_buildings_file,
-    )
-
-    logger.info(
-        "Preprocessing complete. Matched %s buildings.",
-        len(matched),
-    )
+    matched = match_buildings_to_tiles(buildings=buildings, tiles=tiles)
+    write_geodataframe(matched, cfg.outputs.matched_buildings_file)
+    logger.info("Wrote matched buildings to %s.", cfg.outputs.matched_buildings_file)
+    logger.info("Preprocessing complete. Matched %s buildings.", len(matched))
 
     return matched
 
 
 def _read_all_eubucco_buildings(
-    cfg: dict,
+    cfg: EubuccoPreprocessConfig,
     tiles: gpd.GeoDataFrame,
-    *,
-    file_glob: str = "*.parquet",
 ) -> gpd.GeoDataFrame:
     frames: list[gpd.GeoDataFrame] = []
 
-    eubucco_cfg = cfg["eubucco"]
-    input_dir = Path(eubucco_cfg["input_dir"])
-    dissolve_by_id = eubucco_cfg.get("dissolve_by_id", False)
-
-    for path in input_dir.glob(file_glob):
+    for path in cfg.input_dir.glob(cfg.file_glob):
         logger.info("Reading EUBUCCO buildings from %s.", path)
 
         buildings = read_eubucco_buildings(
@@ -68,7 +52,10 @@ def _read_all_eubucco_buildings(
             aoi=tiles.union_all(),
             aoi_crs=tiles.crs.name,
             target_crs=tiles.crs.name,
-            dissolve_by_id=dissolve_by_id,
+            dissolve_by_id=cfg.dissolve_by_id,
+            require_construction_year=cfg.require_construction_year,
+            min_area_m2=cfg.min_area_m2,
+            max_area_m2=cfg.max_area_m2,
         )
 
         frames.append(buildings)
@@ -92,40 +79,3 @@ def _read_all_eubucco_buildings(
     )
 
     return all_buildings
-
-
-def _get_tile_index(
-    cfg: dict,
-) -> gpd.GeoDataFrame:
-    tile_cfg = cfg["tiles"]
-    input_dir = Path(tile_cfg["input_dir"])
-
-    logger.info("Building tile index from %s.", input_dir)
-
-    return build_tile_index(
-        input_dir,
-    )
-
-
-def _write_geodataframe(
-    gdf: gpd.GeoDataFrame,
-    path: str | Path,
-) -> None:
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    suffix = path.suffix.lower()
-
-    if suffix in {".parquet", ".geoparquet"}:
-        gdf.to_parquet(path)
-        return
-
-    if suffix in {".gpkg"}:
-        gdf.to_file(path, driver="GPKG")
-        return
-
-    if suffix in {".geojson", ".json"}:
-        gdf.to_file(path, driver="GeoJSON")
-        return
-
-    raise ValueError(f"Unsupported output file type: {path.suffix}")

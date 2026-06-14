@@ -1,8 +1,28 @@
-input_file: data/interim/matched_buildings.parquet
-output_file: data/processed/single_buildings.jsonl
+inputs:
+  matched_buildings_file: data/interim/matches/matched_buildings.parquet
 
-require_year: True
-max_records: null
+outputs:
+  all_jsonl: data/processed/single_buildings_all.jsonl
+  train_jsonl: data/processed/single_buildings_train.jsonl
+  val_jsonl: data/processed/single_buildings_val.jsonl
+  test_jsonl: data/processed/single_buildings_test.jsonl
+  summary_file: data/processed/prepare_training_data_summary.json
+
+records:
+  max_records: null
+  shuffle: true
+  seed: 42
 
 crop:
   padding_ratio: 0.5
+  min_padding_px: 16
+  max_padding_px: 256
+  edge_policy: keep_clipped
+
+split:
+  enabled: true
+  group_key: image
+  train: 0.8
+  val: 0.1
+  test: 0.1
+  seed: 42

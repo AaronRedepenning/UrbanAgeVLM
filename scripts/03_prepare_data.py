@@ -1,15 +1,20 @@
 from pathlib import Path
 
-from urban_vlm.config import load_config
-from urban_vlm.dataset.manager import prepare_jsonl_dataset
+import typer
+
+from urban_vlm.dataset import load_prepare_config, prepare_jsonl_dataset
 
 
 def main(
-    config: Path = Path("configs/prepare.yaml"),
+    config: Path = typer.Option(
+        Path("configs/prepare.yaml"),
+        "--config",
+        "-c",
+        help="Path to prepare config YAML.",
+    ),
 ) -> None:
-    cfg = load_config(config)
-    prepare_jsonl_dataset(cfg)
+    prepare_jsonl_dataset(load_prepare_config(config))
 
 
 if __name__ == "__main__":
-    main()
+    typer.run(main)
