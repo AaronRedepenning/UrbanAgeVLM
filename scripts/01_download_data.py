@@ -1,15 +1,20 @@
 from pathlib import Path
 
-from urban_vlm.config import load_config
-from urban_vlm.download.manager import download_all
+import typer
+
+from urban_vlm.download import download_all, load_download_config
 
 
 def main(
-    config: Path = Path("configs/download.yaml"),
+    config: Path = typer.Option(
+        Path("configs/download.yaml"),
+        "--config",
+        "-c",
+        help="Path to download config YAML.",
+    ),
 ) -> None:
-    cfg = load_config(config)
-    download_all(cfg)
+    download_all(load_download_config(config))
 
 
 if __name__ == "__main__":
-    main()
+    typer.run(main)
