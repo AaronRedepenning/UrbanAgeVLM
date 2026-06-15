@@ -102,10 +102,10 @@ def normalize_to_uint8(arr: np.ndarray) -> np.ndarray:
 
 def build_prompt(task: TargetTask) -> str:
     if task == TargetTask.CONSTRUCTION_DECADE:
-        return "<image> Estimate the construction decade of the building in the image."
+        return "<image> What decade was the building constructed?"
 
     if task == TargetTask.CONSTRUCTION_YEAR:
-        return "<image> Estimate the construction year of the building in the image."
+        return "<image> What year was this building constructed?"
 
     raise ValueError(f"Unknown task: {task}")
 

@@ -5,7 +5,9 @@ from transformers import (
 )
 
 
-def load_paligemma(model_name: str = "google/paligemma2-3b-mix-448"):
+def load_paligemma(
+    model_name: str = "google/paligemma2-3b-mix-448", train: bool = False
+):
     processor = PaliGemmaProcessor.from_pretrained(model_name)
 
     model = PaliGemmaForConditionalGeneration.from_pretrained(
@@ -13,7 +15,8 @@ def load_paligemma(model_name: str = "google/paligemma2-3b-mix-448"):
         device_map="auto",
         torch_dtype=torch.bfloat16,
     )
-    model.eval()
+    if not train:
+        model.eval()
     # model.config.use_cache = True
 
     return processor, model

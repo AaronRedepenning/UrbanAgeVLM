@@ -14,7 +14,7 @@ from rich.progress import (
 from torch.utils.data import DataLoader
 
 
-def collate_examples(batch: list[dict]) -> dict:
+def collate_fn(batch: list[dict]) -> dict:
     return {
         "ids": [item["id"] for item in batch],
         "images": [item["image"] for item in batch],
@@ -42,7 +42,7 @@ def run_inference(
         dataset,
         batch_size=batch_size,
         shuffle=False,
-        collate_fn=collate_examples,
+        collate_fn=collate_fn,
     )
 
     total = len(loader)
