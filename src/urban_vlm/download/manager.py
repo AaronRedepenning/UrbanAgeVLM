@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 
+from rich.align import Align
 from rich.console import Console
 from rich.table import Table
 
@@ -40,7 +41,7 @@ def _run_step(
         )
 
     if show_progress:
-        console.print(f"[dim]Downloading {name}[/dim]")
+        _print_step_start(console, name)
 
     start = perf_counter()
     paths = download()
@@ -49,12 +50,12 @@ def _run_step(
     file_count = len(paths) if paths is not None else None
 
     if show_progress:
-        if file_count is None:
-            console.print(f"[dim]Finished {name} in {elapsed:.1f}s[/dim]")
-        else:
-            console.print(
-                f"[dim]Finished {name}: {file_count} file(s) in {elapsed:.1f}s[/dim]"
-            )
+        _print_step_done(
+            console,
+            name,
+            file_count=file_count,
+            elapsed_seconds=elapsed,
+        )
 
     return DownloadStepSummary(
         name=name,
@@ -64,12 +65,31 @@ def _run_step(
     )
 
 
+def _print_step_start(console: Console, name: str) -> None:
+    console.print()
+    console.rule(f"[dim]{name}[/dim]", style="dim")
+
+
+def _print_step_done(
+    console: Console,
+    name: str,
+    *,
+    file_count: int | None,
+    elapsed_seconds: float,
+) -> None:
+    if file_count is None:
+        console.print(f"[dim]Finished {name} in {elapsed_seconds:.1f}s[/dim]")
+    else:
+        console.print(
+            f"[dim]Finished {name}: {file_count} file(s) in {elapsed_seconds:.1f}s[/dim]"
+        )
+
+
 def _print_summary(
     console: Console,
     summaries: Sequence[DownloadStepSummary],
 ) -> None:
     enabled_summaries = [summary for summary in summaries if summary.enabled]
-    console.print("\n")
 
     if not enabled_summaries:
         console.print("[dim]No downloads enabled[/dim]")
@@ -107,8 +127,7 @@ def _print_summary(
     table.add_section()
     table.add_row("Total", str(total_files), f"{total_seconds:.1f}s")
 
-    console.print(table)
-    console.print("\n")
+    console.print(Align.center(table))
 
 
 def download_all(cfg: DownloadConfig) -> None:
@@ -157,4 +176,5 @@ def download_all(cfg: DownloadConfig) -> None:
     )
 
     if show_progress:
+        console.print()
         _print_summary(console, summaries)
