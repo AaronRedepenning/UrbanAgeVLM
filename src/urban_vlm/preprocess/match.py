@@ -1,11 +1,8 @@
-import logging
 from enum import StrEnum
 
 import geopandas as gpd
 
 from urban_vlm.dataset.schema import BuildingField
-
-logger = logging.getLogger(__name__)
 
 
 class MatchStrategy(StrEnum):
@@ -24,24 +21,6 @@ def match_buildings_to_tiles(
 ) -> gpd.GeoDataFrame:
     """
     Match each building to an imagery tile.
-
-    Parameters
-    ----------
-    buildings:
-        Building footprints.
-    tiles:
-        Tile footprint index.
-    strategy:
-        Matching strategy.
-    keep_unmatched:
-        If true, keep buildings without a matching tile.
-    target_crs:
-        Optional CRS to project both GeoDataFrames into before matching.
-
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        Buildings with tile_id and tile_path columns added.
     """
     strategy = MatchStrategy(strategy)
 
@@ -79,13 +58,6 @@ def match_buildings_to_tiles(
         )
     else:
         raise ValueError(f"Unsupported match strategy: {strategy}")
-
-    logger.info(
-        "Matched %s / %s buildings to tiles using strategy %r.",
-        matched[str(BuildingField.TILE_ID)].notna().sum(),
-        len(matched),
-        strategy,
-    )
 
     return matched
 

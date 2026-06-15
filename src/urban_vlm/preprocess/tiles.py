@@ -1,5 +1,3 @@
-import logging
-
 import geopandas as gpd
 import rasterio
 from shapely.geometry import box
@@ -7,17 +5,10 @@ from shapely.geometry import box
 from urban_vlm.dataset.schema import BuildingField
 from urban_vlm.preprocess.config import TilesPreprocessConfig
 
-logger = logging.getLogger(__name__)
-
 
 def build_tile_index(cfg: TilesPreprocessConfig) -> gpd.GeoDataFrame:
     """
     Build a spatial index of raster tile footprints.
-
-    Each tile record contains:
-    - tile_id
-    - tile_path
-    - geometry footprint
     """
     tile_paths = sorted(cfg.input_dir.glob(cfg.file_glob))
 
@@ -58,16 +49,8 @@ def build_tile_index(cfg: TilesPreprocessConfig) -> gpd.GeoDataFrame:
                 }
             )
 
-    tiles = gpd.GeoDataFrame(
+    return gpd.GeoDataFrame(
         records,
         geometry="geometry",
         crs=expected_crs,
     )
-
-    logger.info(
-        "Built tile index with %s tiles from %s.",
-        len(tiles),
-        cfg.input_dir,
-    )
-
-    return tiles

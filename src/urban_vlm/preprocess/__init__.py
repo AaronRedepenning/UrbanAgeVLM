@@ -1,8 +1,8 @@
 from urban_vlm.preprocess.config import PreprocessConfig, load_preprocess_config
-from urban_vlm.preprocess.manager import preprocess_buildings_and_match_tiles
+from urban_vlm.preprocess.manager import preprocess_all
 
 __all__ = [
     "PreprocessConfig",
     "load_preprocess_config",
-    "preprocess_buildings_and_match_tiles",
+    "preprocess_all",
 ]

@@ -2,6 +2,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
+from urban_vlm.preprocess.match import MatchStrategy
 from urban_vlm.utils import load_yaml
 
 
@@ -22,23 +23,26 @@ class EubuccoPreprocessConfig(BaseModel):
 
 
 class TilesPreprocessConfig(BaseModel):
-    input_dir: Path = Path("data/raw/bayern/dop20/tiles")
+    input_dir: Path = Path("data/raw/bayern/dop20")
     file_glob: str = "**/*.tif"
-    rebuild_tile_index: bool = False
+
+
+class MatchPreprocessConfig(BaseModel):
+    strategy: MatchStrategy = MatchStrategy.CENTROID_WITHIN_TILE
+    keep_unmatched: bool = False
+    target_crs: str | None = None
 
 
 class PreprocessOutputsConfig(BaseModel):
-    cleaned_buildings_file: Path = Path("data/interim/eubucco/buildings_clean.parquet")
-    tile_index_file: Path = Path("data/interim/bayern/tile_index.parquet")
-    matched_buildings_file: Path = Path(
-        "data/interim/matches/matched_buildings.parquet"
-    )
-    summary_file: Path | None = Path("data/interim/matches/preprocess_summary.json")
+    cleaned_buildings_file: Path = Path("data/interim/buildings_clean.parquet")
+    tile_index_file: Path = Path("data/interim/tile_index.parquet")
+    matched_buildings_file: Path = Path("data/interim/matched_buildings.parquet")
 
 
 class PreprocessConfig(BaseModel):
     eubucco: EubuccoPreprocessConfig = Field(default_factory=EubuccoPreprocessConfig)
     tiles: TilesPreprocessConfig = Field(default_factory=TilesPreprocessConfig)
+    match: MatchPreprocessConfig = Field(default_factory=MatchPreprocessConfig)
     outputs: PreprocessOutputsConfig = Field(default_factory=PreprocessOutputsConfig)
 
 

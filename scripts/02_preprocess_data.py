@@ -2,10 +2,7 @@ from pathlib import Path
 
 import typer
 
-from urban_vlm.preprocess import (
-    load_preprocess_config,
-    preprocess_buildings_and_match_tiles,
-)
+from urban_vlm.preprocess import load_preprocess_config, preprocess_all
 
 
 def main(
@@ -16,7 +13,7 @@ def main(
         help="Path to preprocess config YAML.",
     ),
 ) -> None:
-    preprocess_buildings_and_match_tiles(load_preprocess_config(config))
+    preprocess_all(load_preprocess_config(config))
 
 
 if __name__ == "__main__":
