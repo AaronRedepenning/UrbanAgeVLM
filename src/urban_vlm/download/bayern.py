@@ -2,23 +2,23 @@ from pathlib import Path
 
 from urban_vlm.download.config import BayernDownloadConfig, DownloadOptionsConfig
 from urban_vlm.download.meta4 import download_meta4
-from urban_vlm.utils import url_filename
 
 
 def download_bayern(
-    cfg: BayernDownloadConfig, *, download_options: DownloadOptionsConfig
-) -> None:
-    out_dir = Path(cfg.out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    cfg: BayernDownloadConfig, download_options: DownloadOptionsConfig
+) -> list[Path]:
+    downloaded_paths: list[Path] = []
 
     for meta4_url in cfg.meta4_urls:
-        meta4_url_str = str(meta4_url)
-        meta4_path = out_dir / url_filename(meta4_url_str)
-
-        download_meta4(
-            meta4_url_str,
-            meta4_path=meta4_path,
-            output_dir=out_dir,
-            overwrite=download_options.overwrite,
-            timeout_seconds=download_options.timeout_seconds,
+        downloaded_paths.extend(
+            download_meta4(
+                str(meta4_url),
+                output_dir=cfg.out_dir,
+                overwrite=download_options.overwrite,
+                timeout_seconds=download_options.timeout_seconds,
+                max_workers=download_options.max_workers,
+                show_progress=download_options.show_progress,
+            )
         )
+
+    return downloaded_paths

@@ -1,7 +1,7 @@
 nuts:
   enabled: true
-  url: https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_01M_2024_4326_LEVL_2.geojson
   out_dir: data/raw/nuts
+  url: https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_01M_2024_4326_LEVL_2.geojson
 
 eubucco:
   enabled: true
@@ -27,3 +27,6 @@ bayern:
 
 download:
   overwrite: false
+  timeout_seconds: 60
+  max_workers: 8
+  show_progress: true

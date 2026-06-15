@@ -7,8 +7,8 @@ from urban_vlm.utils import load_yaml
 
 class NutsDownloadConfig(BaseModel):
     enabled: bool = True
-    url: HttpUrl
     out_dir: Path = Path("data/raw/nuts")
+    url: HttpUrl
 
 
 class EubuccoDownloadConfig(BaseModel):
@@ -41,8 +41,8 @@ class BayernDownloadConfig(BaseModel):
 class DownloadOptionsConfig(BaseModel):
     overwrite: bool = False
     timeout_seconds: int = 60
-    retries: int = 3
-    max_workers: int = 4
+    max_workers: int = Field(default=8, ge=1)
+    show_progress: bool = True
 
 
 class DownloadConfig(BaseModel):
