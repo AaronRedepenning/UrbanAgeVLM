@@ -1,111 +1,114 @@
 from pathlib import Path
 
-from peft import LoraConfig, get_peft_model
 from transformers import Trainer, TrainingArguments
 
-from urban_vlm.paligemma.data import JsonlDataset, TargetTask
-from urban_vlm.paligemma.model import load_paligemma
+from urban_vlm.paligemma.config import PaliGemmaConfig
+from urban_vlm.paligemma.data import JsonlDataset, PaliGemmaCollator
+from urban_vlm.paligemma.model import (
+    apply_lora_if_enabled,
+    load_paligemma_model,
+    load_paligemma_processor,
+)
 
 
-class PaliGemmaTrainCollator:
-    def __init__(self, processor):
-        self.processor = processor
+def train_paligemma(cfg: PaliGemmaConfig) -> Trainer:
+    if cfg.data.train_jsonl is None:
+        raise ValueError("cfg.data.train_jsonl is required for training.")
 
-    def __call__(self, batch: list[dict]) -> dict:
-        images = [item["image"] for item in batch]
-        prefixes = [item["prefix"] for item in batch]
-        suffixes = [item["suffix"] for item in batch]
-
-        inputs = self.processor(
-            text=prefixes,
-            images=images,
-            suffix=suffixes,
-            return_tensors="pt",
-            padding=True,
-        )
-
-        return inputs
-
-
-def train_paligemma(
-    train_path: str | Path = "data/processed/single_buildings_train.jsonl",
-    val_path: str | Path = "data/processed/single_buildings_val.jsonl",
-    out_dir: str | Path = "outputs/paligemma/checkpoints/decade_lora",
-) -> None:
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(cfg.training.output_dir)
+    final_dir = output_dir / "final"
 
     train_dataset = JsonlDataset(
-        train_path,
-        task=TargetTask.CONSTRUCTION_DECADE,
-        max_examples=10,
-    )
-    val_dataset = JsonlDataset(
-        val_path,
-        task=TargetTask.CONSTRUCTION_DECADE,
-        max_examples=10,
+        cfg.data.train_jsonl,
+        max_records=cfg.data.max_records,
     )
 
-    processor, model = load_paligemma(train=True)
+    eval_dataset = None
+    has_eval = cfg.data.val_jsonl is not None
 
-    lora_config = LoraConfig(
-        r=32,
-        lora_alpha=32,
-        lora_dropout=0.05,
-        target_modules=[
-            "q_proj",
-            "o_proj",
-            "k_proj",
-            "v_proj",
-            "gate_proj",
-            "up_proj",
-            "down_proj",
-            "multi_modal_projector.linear",
-        ],
-        task_type="CAUSAL_LM",
+    if has_eval:
+        eval_dataset = JsonlDataset(
+            cfg.data.val_jsonl,
+            max_records=cfg.data.max_records,
+        )
+
+    processor = load_paligemma_processor(cfg.model)
+
+    model = load_paligemma_model(cfg.model)
+    model = apply_lora_if_enabled(model, cfg.lora)
+
+    if cfg.training.gradient_checkpointing:
+        model.config.use_cache = False
+
+    if hasattr(model, "print_trainable_parameters"):
+        model.print_trainable_parameters()
+
+    collator = PaliGemmaCollator(
+        processor=processor,
+        task=cfg.task,
+        image_root=cfg.data.image_root,
+        train=True,
+        return_metadata=False,
     )
 
-    model = get_peft_model(model, lora_config)
-    model.print_trainable_parameters()
-
-    args = TrainingArguments(
-        output_dir=str(out_dir),
-        num_train_epochs=1,
-        remove_unused_columns=False,
-        per_device_train_batch_size=1,
-        per_device_eval_batch_size=1,
-        gradient_accumulation_steps=8,
-        warmup_ratio=0.05,
-        learning_rate=2e-4,
-        weight_decay=0.01,
-        logging_steps=25,
-        optim="paged_adamw_8bit",
-        save_strategy="steps",
-        save_steps=250,
-        save_total_limit=2,
-        fp16=True,
-        bf16=False,
-        eval_strategy="steps",
-        eval_steps=250,
-        load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
-        greater_is_better=False,
-        report_to="none",
-        run_name="paligemma_decade_lora",
-        seed=42,
-        data_seed=42,
-    )
+    args = _training_arguments(cfg, has_eval=has_eval)
 
     trainer = Trainer(
         model=model,
         train_dataset=train_dataset,
-        eval_dataset=val_dataset,
-        data_collator=PaliGemmaTrainCollator(processor),
+        eval_dataset=eval_dataset,
+        data_collator=collator,
         args=args,
         processing_class=processor,
     )
 
     trainer.train()
 
-    trainer.save_model(args.output_dir)
-    processor.save_pretrained(args.output_dir)
+    trainer.save_model(final_dir)
+    processor.save_pretrained(final_dir)
+
+    return trainer
+
+
+def _training_arguments(
+    cfg: PaliGemmaConfig,
+    *,
+    has_eval: bool,
+) -> TrainingArguments:
+    eval_strategy = "steps" if has_eval else "no"
+
+    load_best_model_at_end = has_eval
+
+    if has_eval and cfg.training.save_steps % cfg.training.eval_steps != 0:
+        raise ValueError(
+            "When load_best_model_at_end=True with step-based evaluation, "
+            "save_steps must be a multiple of eval_steps."
+        )
+
+    return TrainingArguments(
+        output_dir=str(cfg.training.output_dir),
+        num_train_epochs=cfg.training.num_train_epochs,
+        remove_unused_columns=cfg.training.remove_unused_columns,
+        per_device_train_batch_size=cfg.training.per_device_train_batch_size,
+        per_device_eval_batch_size=cfg.training.per_device_eval_batch_size,
+        gradient_accumulation_steps=cfg.training.gradient_accumulation_steps,
+        warmup_ratio=cfg.training.warmup_ratio,
+        learning_rate=cfg.training.learning_rate,
+        weight_decay=cfg.training.weight_decay,
+        logging_steps=cfg.training.logging_steps,
+        optim="paged_adamw_8bit" if cfg.lora.enabled else "adamw_hf",
+        save_strategy="steps",
+        save_steps=cfg.training.save_steps,
+        save_total_limit=cfg.training.save_total_limit,
+        fp16=cfg.training.fp16,
+        bf16=cfg.training.bf16,
+        gradient_checkpointing=cfg.training.gradient_checkpointing,
+        eval_strategy=eval_strategy,
+        eval_steps=cfg.training.eval_steps if has_eval else None,
+        load_best_model_at_end=load_best_model_at_end,
+        metric_for_best_model="eval_loss" if has_eval else None,
+        greater_is_better=False if has_eval else None,
+        report_to=cfg.training.report_to,
+        seed=cfg.training.seed,
+        data_seed=cfg.training.seed,
+    )

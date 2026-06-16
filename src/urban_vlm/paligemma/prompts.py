@@ -6,22 +6,33 @@ from urban_vlm.eubucco.schema import EubuccoField
 from urban_vlm.paligemma.config import PaliGemmaTask
 
 
-def build_prompt(record: dict[str, Any], task: PaliGemmaTask | str) -> str:
+def build_prompt(
+    record: dict[str, Any],
+    task: PaliGemmaTask | str,
+    lan: str = "en",
+) -> str:
     task = PaliGemmaTask(task)
 
-    if task == PaliGemmaTask.BUILDING_YEAR:
-        return (
-            "Predict the construction year of the building in this aerial image crop. "
-            "Answer with only a four-digit year, or unknown."
-        )
+    if lan != "en":
+        raise ValueError(f"Unsupported language: {lan}")
 
-    if task == PaliGemmaTask.BUILDING_DECADE:
-        return (
-            "Predict the construction decade of the building in this aerial image crop. "
-            "Answer with only a decade like 1990, or unknown."
-        )
+    prompts = {
+        PaliGemmaTask.BUILDING_YEAR: (
+            "what is the construction year of the center building? "
+            "four-digit year or unknown."
+        ),
+        PaliGemmaTask.BUILDING_DECADE: (
+            "what is the construction decade of the center building? "
+            "four-digit decade ending in 0 or unknown."
+        ),
+    }
 
-    raise ValueError(f"Unsupported PaliGemma task: {task}")
+    try:
+        prompt = prompts[task]
+    except KeyError as exc:
+        raise ValueError(f"Unsupported PaliGemma task: {task}") from exc
+
+    return f"<image>answer {lan} {prompt}\n"
 
 
 def build_target(record: dict[str, Any], task: PaliGemmaTask | str) -> str:

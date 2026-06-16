@@ -1,0 +1,56 @@
+task: building_decade
+
+model:
+  model_id: google/paligemma2-3b-pt-448
+  torch_dtype: bfloat16
+  device_map: auto
+  attn_implementation: null
+  trust_remote_code: false
+
+data:
+  train_jsonl: /content/drive/MyDrive/data/processed/single_building/train.jsonl
+  val_jsonl: /content/drive/MyDrive/data/processed/single_building/val.jsonl
+  test_jsonl: /content/drive/MyDrive/data/processed/single_building/test.jsonl
+  image_root: /content/drive/MyDrive
+  max_records: 128
+
+generation:
+  max_new_tokens: 32
+  do_sample: false
+  temperature: null
+  top_p: null
+  num_beams: 1
+
+lora:
+  enabled: true
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+training:
+  output_dir: /content/drive/MyDrive/outputs/checkpoints/paligemma-building-decade
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 2.0e-5
+  weight_decay: 0.0
+  warmup_ratio: 0.03
+  logging_steps: 10
+  save_steps: 50
+  eval_steps: 50
+  save_total_limit: 2
+  bf16: true
+  fp16: false
+  gradient_checkpointing: true
+  remove_unused_columns: false
+  report_to: []
+  seed: 42

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 
 from urban_vlm.dataset.jsonl import write_jsonl
 from urban_vlm.paligemma.config import PaliGemmaConfig
-from urban_vlm.paligemma.data import JsonlDataset, PaliGemmaCollator
+from urban_vlm.paligemma.data import JsonlDataset, PaliGemmaCollator, build_target
 from urban_vlm.paligemma.model import load_paligemma_model, load_paligemma_processor
 
 
@@ -81,10 +81,9 @@ class PaliGemmaPredictor:
                 predictions.append(
                     {
                         "id": record.get("id"),
-                        "image": record.get("image"),
-                        "crop": record.get("crop"),
                         "task": str(self.cfg.task),
                         "prompt": prompt,
+                        "target": build_target(record, self.cfg.task),
                         "prediction": text.strip(),
                     }
                 )
