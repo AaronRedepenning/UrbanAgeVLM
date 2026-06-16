@@ -7,6 +7,20 @@ from PIL import Image
 from rasterio.windows import Window
 
 
+def load_training_image_from_record(
+    record: dict[str, Any],
+    *,
+    image_root: str | Path | None = None,
+) -> Image.Image:
+    crop_image = record.get("crop_image")
+
+    if crop_image:
+        path = resolve_image_path(crop_image, image_root=image_root)
+        return Image.open(path).convert("RGB")
+
+    return crop_image_from_record(record, image_root=image_root)
+
+
 def resolve_image_path(path: str | Path, image_root: str | Path | None = None) -> Path:
     path = Path(path)
 

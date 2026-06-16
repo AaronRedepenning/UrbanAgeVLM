@@ -20,6 +20,7 @@ from rich.progress import (
 from rich.table import Table
 
 from urban_vlm.dataset.config import PrepareDataConfig
+from urban_vlm.dataset.crops import write_crop_image
 from urban_vlm.dataset.jsonl import write_jsonl_record
 from urban_vlm.dataset.records import (
     RasterInfo,
@@ -252,7 +253,18 @@ def _write_jsonl_records(
 
                             continue
 
-                        write_jsonl_record(f, result.record)
+                        record = result.record
+
+                        if cfg.crop_images.enabled:
+                            record = write_crop_image(
+                                record,
+                                output_dir=cfg.crop_images.output_dir,
+                                image_format=cfg.crop_images.image_format,
+                                overwrite=cfg.crop_images.overwrite,
+                                relative_to=cfg.crop_images.relative_to,
+                            )
+
+                        write_jsonl_record(f, record)
 
                         written += 1
 

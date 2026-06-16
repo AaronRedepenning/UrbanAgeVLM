@@ -108,6 +108,14 @@ class CropConfig(BaseModel):
         return self
 
 
+class CropImageOutputConfig(BaseModel):
+    enabled: bool = False
+    output_dir: Path = Path("data/processed/crops")
+    image_format: Literal["png", "jpg", "jpeg", "webp"] = "png"
+    overwrite: bool = False
+    relative_to: Path | None = None
+
+
 class SplitConfig(BaseModel):
     enabled: bool = True
     group_key: str = "image"
@@ -137,6 +145,7 @@ class PrepareDataConfig(BaseModel):
     outputs: PrepareOutputsConfig = Field(default_factory=PrepareOutputsConfig)
     records: RecordsConfig = Field(default_factory=RecordsConfig)
     crop: CropConfig = Field(default_factory=CropConfig)
+    crop_images: CropImageOutputConfig = Field(default_factory=CropImageOutputConfig)
     split: SplitConfig = Field(default_factory=SplitConfig)
 
 

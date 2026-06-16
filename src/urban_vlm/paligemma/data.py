@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 from urban_vlm.dataset.jsonl import read_jsonl
 from urban_vlm.paligemma.config import PaliGemmaTask
-from urban_vlm.paligemma.images import crop_image_from_record
+from urban_vlm.paligemma.images import load_training_image_from_record
 from urban_vlm.paligemma.prompts import build_prompt, build_target
 
 
@@ -48,7 +48,7 @@ class PaliGemmaCollator:
         ids = [feature.get("id") for feature in features]
 
         images = [
-            crop_image_from_record(record, image_root=self.image_root)
+            load_training_image_from_record(record, image_root=self.image_root)
             for record in records
         ]
 

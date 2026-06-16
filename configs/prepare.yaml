@@ -32,6 +32,13 @@ crop:
   square: true
   drop_edge_crops: true
 
+crop_images:
+  enabled: true
+  output_dir: data/processed/single_building/crops
+  image_format: png
+  overwrite: false
+  relative_to: data/processed/single_building
+
 split:
   enabled: true
   group_key: image
