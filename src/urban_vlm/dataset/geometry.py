@@ -1,4 +1,6 @@
+import math
 from dataclasses import dataclass
+from typing import Literal
 
 from affine import Affine
 from pyproj import Transformer
@@ -17,6 +19,13 @@ class CropSpec:
     bounds: PixelBounds
     width: int
     height: int
+    is_clipped: bool = False
+
+
+@dataclass(frozen=True)
+class CropPlan:
+    bounds: PixelBounds
+    is_clipped: bool
 
 
 @dataclass(frozen=True)
@@ -64,10 +73,10 @@ def geometry_pixel_bbox(
     minx, miny, maxx, maxy = pixel_geometry.bounds
 
     return [
-        int(minx // 1),
-        int(miny // 1),
-        int(maxx + 1),
-        int(maxy + 1),
+        math.floor(minx),
+        math.floor(miny),
+        math.ceil(maxx),
+        math.ceil(maxy),
     ]
 
 
@@ -112,32 +121,84 @@ def padded_bounds(
 def crop_spec_from_pixel_bbox(
     bbox: PixelBounds,
     *,
-    padding_ratio: float,
-    min_padding_px: int,
-    max_padding_px: int | None,
+    mode: Literal["percent", "fixed", "adaptive"],
     image_width: int,
     image_height: int,
-) -> CropSpec:
-    padding_px = padding_from_bbox(
-        bbox,
-        padding_ratio=padding_ratio,
-        min_padding_px=min_padding_px,
-        max_padding_px=max_padding_px,
+    square: bool = True,
+    drop_edge_crops: bool = False,
+    padding_ratio: float = 0.5,
+    min_padding_px: int = 0,
+    max_padding_px: int | None = None,
+    fixed_size_px: int | None = None,
+    adaptive_scale: float = 2.0,
+    min_size_px: int | None = None,
+    max_size_px: int | None = None,
+) -> CropSpec | None:
+    """
+    Build a crop around a building bbox.
+
+    Returns None when the crop would extend outside the raster and
+    drop_edge_crops=True.
+    """
+
+    if mode == "percent":
+        raw_bounds = _percent_crop_bounds(
+            bbox,
+            padding_ratio=padding_ratio,
+            min_padding_px=min_padding_px,
+            max_padding_px=max_padding_px,
+            square=square,
+        )
+
+    elif mode == "fixed":
+        if fixed_size_px is None:
+            raise ValueError("fixed_size_px is required when mode='fixed'.")
+
+        center_x, center_y = bbox_center(bbox)
+        raw_bounds = bounds_from_center(
+            center_x,
+            center_y,
+            width=fixed_size_px,
+            height=fixed_size_px if square else fixed_size_px,
+        )
+
+    elif mode == "adaptive":
+        raw_bounds = _adaptive_crop_bounds(
+            bbox,
+            adaptive_scale=adaptive_scale,
+            min_size_px=min_size_px,
+            max_size_px=max_size_px,
+            square=square,
+        )
+
+    else:
+        raise ValueError(f"Unsupported crop mode: {mode!r}")
+
+    is_inside = bounds_are_inside_image(
+        raw_bounds,
+        image_width=image_width,
+        image_height=image_height,
     )
 
-    crop_bounds = padded_bounds(
-        bbox,
-        padding_px=padding_px,
+    if drop_edge_crops and not is_inside:
+        return None
+
+    crop_bounds = clamp_bounds_to_image(
+        raw_bounds,
         image_width=image_width,
         image_height=image_height,
     )
 
     x_min, y_min, x_max, y_max = crop_bounds
 
+    if x_max <= x_min or y_max <= y_min:
+        return None
+
     return CropSpec(
         bounds=crop_bounds,
         width=x_max - x_min,
         height=y_max - y_min,
+        is_clipped=not is_inside,
     )
 
 
@@ -197,3 +258,152 @@ def building_geometry_for_crop(
 
 def _polygon_exterior_to_points(polygon: Polygon) -> PixelRing:
     return [[int(x), int(y)] for x, y in polygon.exterior.coords]
+
+
+def bbox_width(bounds: PixelBounds) -> int:
+    x_min, _, x_max, _ = bounds
+    return max(0, x_max - x_min)
+
+
+def bbox_height(bounds: PixelBounds) -> int:
+    _, y_min, _, y_max = bounds
+    return max(0, y_max - y_min)
+
+
+def bbox_center(bounds: PixelBounds) -> tuple[float, float]:
+    x_min, y_min, x_max, y_max = bounds
+    return (x_min + x_max) / 2.0, (y_min + y_max) / 2.0
+
+
+def clamp_bounds_to_image(
+    bounds: PixelBounds,
+    *,
+    image_width: int,
+    image_height: int,
+) -> PixelBounds:
+    x_min, y_min, x_max, y_max = bounds
+
+    return [
+        max(0, x_min),
+        max(0, y_min),
+        min(image_width, x_max),
+        min(image_height, y_max),
+    ]
+
+
+def bounds_are_inside_image(
+    bounds: PixelBounds,
+    *,
+    image_width: int,
+    image_height: int,
+) -> bool:
+    x_min, y_min, x_max, y_max = bounds
+
+    return x_min >= 0 and y_min >= 0 and x_max <= image_width and y_max <= image_height
+
+
+def bounds_from_center(
+    center_x: float,
+    center_y: float,
+    *,
+    width: int,
+    height: int,
+) -> PixelBounds:
+    x_min = int(round(center_x - width / 2))
+    y_min = int(round(center_y - height / 2))
+    x_max = x_min + width
+    y_max = y_min + height
+
+    return [x_min, y_min, x_max, y_max]
+
+
+def square_bounds_around_center(
+    bounds: PixelBounds,
+) -> PixelBounds:
+    center_x, center_y = bbox_center(bounds)
+    size = max(bbox_width(bounds), bbox_height(bounds))
+
+    return bounds_from_center(
+        center_x,
+        center_y,
+        width=size,
+        height=size,
+    )
+
+
+def _percent_crop_bounds(
+    bbox: PixelBounds,
+    *,
+    padding_ratio: float,
+    min_padding_px: int,
+    max_padding_px: int | None,
+    square: bool,
+) -> PixelBounds:
+    padding_px = padding_from_bbox(
+        bbox,
+        padding_ratio=padding_ratio,
+        min_padding_px=min_padding_px,
+        max_padding_px=max_padding_px,
+    )
+
+    x_min, y_min, x_max, y_max = bbox
+
+    bounds = [
+        x_min - padding_px,
+        y_min - padding_px,
+        x_max + padding_px,
+        y_max + padding_px,
+    ]
+
+    if square:
+        bounds = square_bounds_around_center(bounds)
+
+    return bounds
+
+
+def _adaptive_crop_bounds(
+    bbox: PixelBounds,
+    *,
+    adaptive_scale: float,
+    min_size_px: int | None,
+    max_size_px: int | None,
+    square: bool,
+) -> PixelBounds:
+    center_x, center_y = bbox_center(bbox)
+
+    building_width = bbox_width(bbox)
+    building_height = bbox_height(bbox)
+
+    if square:
+        size = int(round(max(building_width, building_height) * adaptive_scale))
+
+        if min_size_px is not None:
+            size = max(size, min_size_px)
+
+        if max_size_px is not None:
+            size = min(size, max_size_px)
+
+        return bounds_from_center(
+            center_x,
+            center_y,
+            width=size,
+            height=size,
+        )
+
+    width = int(round(building_width * adaptive_scale))
+    height = int(round(building_height * adaptive_scale))
+
+    if min_size_px is not None:
+        width = max(width, min_size_px)
+        height = max(height, min_size_px)
+
+    if max_size_px is not None:
+        width = min(width, max_size_px)
+        height = min(height, max_size_px)
+
+    return bounds_from_center(
+        center_x,
+        center_y,
+        width=width,
+        height=height,
+    )

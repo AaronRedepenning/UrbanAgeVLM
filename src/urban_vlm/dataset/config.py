@@ -7,19 +7,15 @@ from urban_vlm.utils import load_yaml
 
 
 class PrepareInputsConfig(BaseModel):
-    matched_buildings_file: Path = Path(
-        "data/interim/matches/matched_buildings.parquet"
-    )
+    matched_buildings_file: Path = Path("data/interim/matched_buildings.parquet")
 
 
 class PrepareOutputsConfig(BaseModel):
-    all_jsonl: Path = Path("data/processed/single_buildings_all.jsonl")
-    train_jsonl: Path | None = Path("data/processed/single_buildings_train.jsonl")
-    val_jsonl: Path | None = Path("data/processed/single_buildings_val.jsonl")
-    test_jsonl: Path | None = Path("data/processed/single_buildings_test.jsonl")
-    summary_file: Path | None = Path(
-        "data/processed/prepare_training_data_summary.json"
-    )
+    all_jsonl: Path = Path("data/processed/all.jsonl")
+    train_jsonl: Path | None = Path("data/processed/train.jsonl")
+    val_jsonl: Path | None = Path("data/processed/val.jsonl")
+    test_jsonl: Path | None = Path("data/processed/test.jsonl")
+    summary_file: Path | None = Path("data/processed/summary.json")
 
 
 class RecordsConfig(BaseModel):
@@ -36,10 +32,24 @@ class RecordsConfig(BaseModel):
 
 
 class CropConfig(BaseModel):
+    mode: Literal["percent", "fixed", "adaptive"] = "adaptive"
+
+    # Used by mode="percent" and mode="adaptive"
     padding_ratio: float = 0.5
     min_padding_px: int = 16
     max_padding_px: int | None = 256
-    edge_policy: Literal["keep_clipped", "drop_clipped"] = "keep_clipped"
+
+    # Used by mode="fixed"
+    fixed_size_px: int | None = None
+
+    # Used by mode="adaptive"
+    min_size_px: int | None = 320
+    max_size_px: int | None = 800
+    adaptive_scale: float = 2.0
+
+    # General behavior
+    square: bool = True
+    drop_edge_crops: bool = False
 
     @field_validator("padding_ratio")
     @classmethod
@@ -61,6 +71,41 @@ class CropConfig(BaseModel):
         if value is not None and value < 0:
             raise ValueError("crop.max_padding_px must be non-negative when provided.")
         return value
+
+    @field_validator("fixed_size_px")
+    @classmethod
+    def validate_fixed_size_px(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("crop.fixed_size_px must be positive when provided.")
+        return value
+
+    @field_validator("min_size_px", "max_size_px")
+    @classmethod
+    def validate_size_px(cls, value: int | None) -> int | None:
+        if value is not None and value <= 0:
+            raise ValueError("crop min/max sizes must be positive when provided.")
+        return value
+
+    @field_validator("adaptive_scale")
+    @classmethod
+    def validate_adaptive_scale(cls, value: float) -> float:
+        if value <= 0:
+            raise ValueError("crop.adaptive_scale must be positive.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_crop_mode(self) -> "CropConfig":
+        if self.mode == "fixed" and self.fixed_size_px is None:
+            raise ValueError("crop.fixed_size_px is required when crop.mode='fixed'.")
+
+        if (
+            self.min_size_px is not None
+            and self.max_size_px is not None
+            and self.min_size_px > self.max_size_px
+        ):
+            raise ValueError("crop.min_size_px must be <= crop.max_size_px.")
+
+        return self
 
 
 class SplitConfig(BaseModel):

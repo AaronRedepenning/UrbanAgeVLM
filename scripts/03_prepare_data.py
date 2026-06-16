@@ -2,7 +2,7 @@ from pathlib import Path
 
 import typer
 
-from urban_vlm.dataset import load_prepare_config, prepare_jsonl_dataset
+from urban_vlm.dataset import load_prepare_config, prepare_all
 
 
 def main(
@@ -13,7 +13,7 @@ def main(
         help="Path to prepare config YAML.",
     ),
 ) -> None:
-    prepare_jsonl_dataset(load_prepare_config(config))
+    prepare_all(load_prepare_config(config))
 
 
 if __name__ == "__main__":

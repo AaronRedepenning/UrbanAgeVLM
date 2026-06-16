@@ -5,6 +5,7 @@ from typing import Any
 import pandas as pd
 from affine import Affine
 
+from urban_vlm.dataset.config import CropConfig
 from urban_vlm.dataset.geometry import (
     building_geometry_for_crop,
     crop_spec_from_pixel_bbox,
@@ -25,15 +26,35 @@ class RasterInfo:
     crs: str
 
 
+@dataclass(frozen=True)
+class JsonlRecordBuildResult:
+    record: dict[str, Any] | None
+    skip_reason: str | None = None
+    is_clipped: bool = False
+
+
 def build_jsonl_record(
     row: pd.Series,
     *,
     raster: RasterInfo,
     source_crs: str,
-    crop_padding_ratio: float,
-    min_padding_px: int = 0,
-    max_padding_px: int | None = None,
-) -> dict[str, Any]:
+    crop: CropConfig,
+) -> dict[str, Any] | None:
+    return build_jsonl_record_result(
+        row,
+        raster=raster,
+        source_crs=source_crs,
+        crop=crop,
+    ).record
+
+
+def build_jsonl_record_result(
+    row: pd.Series,
+    *,
+    raster: RasterInfo,
+    source_crs: str,
+    crop: CropConfig,
+) -> JsonlRecordBuildResult:
     tile_id = _get_optional(row, str(BuildingField.TILE_ID))
     geometry = row.geometry
 
@@ -45,15 +66,31 @@ def build_jsonl_record(
 
     crop_spec = crop_spec_from_pixel_bbox(
         tile_pixel_bbox,
-        padding_ratio=crop_padding_ratio,
-        min_padding_px=min_padding_px,
-        max_padding_px=max_padding_px,
+        mode=crop.mode,
+        padding_ratio=crop.padding_ratio,
+        min_padding_px=crop.min_padding_px,
+        max_padding_px=crop.max_padding_px,
+        fixed_size_px=crop.fixed_size_px,
+        adaptive_scale=crop.adaptive_scale,
+        min_size_px=crop.min_size_px,
+        max_size_px=crop.max_size_px,
+        square=crop.square,
+        drop_edge_crops=crop.drop_edge_crops,
         image_width=raster.width,
         image_height=raster.height,
     )
 
-    building_id = str(row[str(EubuccoField.id)])
+    if crop_spec is None:
+        return JsonlRecordBuildResult(
+            record=None,
+            skip_reason=_infer_crop_skip_reason(
+                tile_pixel_bbox,
+                raster=raster,
+                crop=crop,
+            ),
+        )
 
+    building_id = str(row[str(EubuccoField.id)])
     record_id = _make_record_id(
         building_id=building_id,
         tile_id=str(tile_id) if tile_id is not None else None,
@@ -72,23 +109,28 @@ def build_jsonl_record(
         "image": raster.path,
         "crop": {
             "type": "single",
+            "mode": crop.mode,
             "bounds": crop_spec.bounds,
             "width": crop_spec.width,
             "height": crop_spec.height,
+            "is_clipped": crop_spec.is_clipped,
         },
         "buildings": [
             building,
         ],
     }
 
-    return record
+    return JsonlRecordBuildResult(
+        record=record,
+        is_clipped=bool(crop_spec.is_clipped),
+    )
 
 
 def build_building_record(
     row: pd.Series,
     *,
     source_crs: str,
-    transform,
+    transform: Affine,
     crop_bounds: list[int],
 ) -> dict[str, Any]:
     geometry = row.geometry
@@ -114,7 +156,10 @@ def build_building_record(
         "location": {
             "crs": "EPSG:4326",
             "center": transform_point(
-                centroid.x, centroid.y, source_crs=source_crs, target_crs="EPSG:4326"
+                centroid.x,
+                centroid.y,
+                source_crs=source_crs,
+                target_crs="EPSG:4326",
             ),
         },
         "attributes": {
@@ -126,9 +171,38 @@ def build_building_record(
             "floors": _get_optional(row, str(EubuccoField.floors)),
             "construction_year": construction_year,
             "construction_decade": _construction_decade(construction_year),
-            "area_m2": geometry.area,
+            "area_m2": float(geometry.area) if geometry is not None else None,
         },
     }
+
+
+def _infer_crop_skip_reason(
+    tile_pixel_bbox,
+    *,
+    raster: RasterInfo,
+    crop: CropConfig,
+) -> str:
+    if crop.drop_edge_crops:
+        unclipped_crop_spec = crop_spec_from_pixel_bbox(
+            tile_pixel_bbox,
+            mode=crop.mode,
+            padding_ratio=crop.padding_ratio,
+            min_padding_px=crop.min_padding_px,
+            max_padding_px=crop.max_padding_px,
+            fixed_size_px=crop.fixed_size_px,
+            adaptive_scale=crop.adaptive_scale,
+            min_size_px=crop.min_size_px,
+            max_size_px=crop.max_size_px,
+            square=crop.square,
+            drop_edge_crops=False,
+            image_width=raster.width,
+            image_height=raster.height,
+        )
+
+        if unclipped_crop_spec is not None and unclipped_crop_spec.is_clipped:
+            return "clipped_crop"
+
+    return "invalid_crop"
 
 
 def _make_record_id(
@@ -155,9 +229,7 @@ def _construction_decade(
         return None
 
     year_int = int(year)
-    decade = year_int // 10 * 10
-
-    return decade
+    return year_int // 10 * 10
 
 
 def _require_value(row: pd.Series, column: str) -> str:

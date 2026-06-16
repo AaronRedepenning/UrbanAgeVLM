@@ -3,13 +3,15 @@ import re
 from pathlib import Path
 
 import torch
+from rich.console import Console
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
     Progress,
+    SpinnerColumn,
     TaskProgressColumn,
     TextColumn,
-    TimeRemainingColumn,
+    TimeElapsedColumn,
 )
 from torch.utils.data import DataLoader
 
@@ -48,12 +50,16 @@ def run_inference(
     total = len(loader)
     count = 0
 
+    console = Console()
     progress = Progress(
-        TextColumn("[bold blue]{task.description}"),
+        SpinnerColumn(),
+        TextColumn("[dim]{task.description}", justify="left"),
         BarColumn(),
         MofNCompleteColumn(),
         TaskProgressColumn(),
-        TimeRemainingColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
     )
 
     with progress:

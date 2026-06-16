@@ -1,12 +1,12 @@
 inputs:
-  matched_buildings_file: data/interim/matches/matched_buildings.parquet
+  matched_buildings_file: data/interim/matched_buildings.parquet
 
 outputs:
-  all_jsonl: data/processed/single_buildings_all.jsonl
-  train_jsonl: data/processed/single_buildings_train.jsonl
-  val_jsonl: data/processed/single_buildings_val.jsonl
-  test_jsonl: data/processed/single_buildings_test.jsonl
-  summary_file: data/processed/prepare_training_data_summary.json
+  all_jsonl: data/processed/single_buildings/all.jsonl
+  train_jsonl: data/processed/single_buildings/train.jsonl
+  val_jsonl: data/processed/single_buildings/val.jsonl
+  test_jsonl: data/processed/single_buildings/test.jsonl
+  summary_file: data/processed/single_buildings/summary.json
 
 records:
   max_records: null
@@ -14,10 +14,23 @@ records:
   seed: 42
 
 crop:
+  mode: percent
+
+  # Used by mode="percent" and mode="adaptive"
   padding_ratio: 0.5
-  min_padding_px: 16
-  max_padding_px: 256
-  edge_policy: keep_clipped
+  min_padding_px: 25 # 5 meters
+  max_padding_px: null
+
+  # Used by mode="fixed"
+  fixed_size_px: null
+
+  # Used by mode="adaptive"
+  adaptive_scale: 2.25
+  min_size_px: 320 # 64 meters
+  max_size_px: 800 # 160 meters
+
+  square: true
+  drop_edge_crops: true
 
 split:
   enabled: true

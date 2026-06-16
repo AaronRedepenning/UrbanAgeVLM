@@ -1,4 +1,5 @@
-import logging
+import warnings
+from dataclasses import dataclass
 from pathlib import Path
 
 import geopandas as gpd
@@ -14,7 +15,34 @@ from urban_vlm.eubucco.schema import (
 )
 from urban_vlm.utils import read_geodataframe
 
-logger = logging.getLogger(__name__)
+
+@dataclass(frozen=True)
+class EubuccoReadStats:
+    path: Path
+    raw_rows: int
+    after_basic_clean: int
+    after_aoi: int
+    after_dissolve: int
+    after_construction_year: int
+    final_rows: int
+    dropped_missing_or_empty_geometry: int = 0
+    repaired_invalid_geometry: int = 0
+    dropped_invalid_geometry: int = 0
+    dropped_outside_aoi: int = 0
+    dissolved_rows_removed: int = 0
+    dropped_missing_construction_year: int = 0
+    dropped_below_min_area: int = 0
+    dropped_above_max_area: int = 0
+
+    @property
+    def total_dropped(self) -> int:
+        return self.raw_rows - self.final_rows
+
+
+@dataclass(frozen=True)
+class EubuccoReadResult:
+    buildings: gpd.GeoDataFrame
+    stats: EubuccoReadStats
 
 
 def read_eubucco_buildings(
@@ -27,43 +55,7 @@ def read_eubucco_buildings(
     require_construction_year: bool = False,
     min_area_m2: float | None = None,
     max_area_m2: float | None = None,
-) -> gpd.GeoDataFrame:
-    """
-    Read EUBUCCO building data using the project's required EUBUCCO schema.
-
-    This function:
-    - reads only the standard required EUBUCCO columns,
-    - reprojects to the target CRS,
-    - coerces numeric columns,
-    - removes invalid / empty geometries,
-    - optionally filters to an area of interest,
-    - optionally dissolves multipart EUBUCCO IDs into one building record,
-    - adds a project-derived ``part_count`` column.
-
-    Parameters
-    ----------
-    path:
-        Path to an EUBUCCO file.
-    aoi:
-        Optional area of interest. Can be a shapely geometry, GeoSeries,
-        GeoDataFrame, or path to a vector file.
-    aoi_crs:
-        CRS of the AOI if ``aoi`` is a raw shapely geometry or has no CRS.
-    target_crs:
-        CRS returned by this function.
-    dissolve_by_id:
-        If true, IDs ending in part suffixes like ``-1`` or ``-2`` are collapsed
-        to the base ID and geometries are dissolved.
-    min_area_m2
-        Minumum allowd building area.
-    max_area_m2
-        Maximum allowed building area.
-
-    Returns
-    -------
-    geopandas.GeoDataFrame
-        Cleaned EUBUCCO buildings in ``target_crs``.
-    """
+) -> EubuccoReadResult:
     path = Path(path)
 
     buildings = read_geodataframe(
@@ -72,90 +64,123 @@ def read_eubucco_buildings(
     )
     require_columns(buildings, ALL_REQUIRED_FIELDS)
 
-    buildings = buildings.to_crs(target_crs)
-    buildings = _clean_basic_eubucco(buildings)
+    raw_rows = len(buildings)
 
+    buildings = buildings.to_crs(target_crs)
+
+    (
+        buildings,
+        dropped_missing_or_empty_geometry,
+        repaired_invalid_geometry,
+        dropped_invalid_geometry,
+    ) = _clean_basic_eubucco(buildings)
+
+    after_basic_clean = len(buildings)
+
+    dropped_outside_aoi = 0
     if aoi is not None:
+        before = len(buildings)
         buildings = _filter_to_aoi(
             buildings,
             aoi=aoi,
             aoi_crs=aoi_crs,
             target_crs=target_crs,
         )
+        dropped_outside_aoi = before - len(buildings)
 
+    after_aoi = len(buildings)
+
+    dissolved_rows_removed = 0
     if dissolve_by_id:
+        before = len(buildings)
         buildings = _dissolve_building_parts_by_id(buildings)
+        dissolved_rows_removed = before - len(buildings)
     else:
         buildings = buildings.copy()
         buildings[str(BuildingField.PART_COUNT)] = 1
 
-    if require_construction_year:
-        buildings = buildings[buildings[EubuccoField.construction_year].notna()].copy()
+    after_dissolve = len(buildings)
 
-    buildings = _filter_by_area(
-        buildings, min_area_m2=min_area_m2, max_area_m2=max_area_m2
+    dropped_missing_construction_year = 0
+    if require_construction_year:
+        construction_year_col = str(EubuccoField.construction_year)
+        before = len(buildings)
+        buildings = buildings[buildings[construction_year_col].notna()].copy()
+        dropped_missing_construction_year = before - len(buildings)
+
+    after_construction_year = len(buildings)
+
+    (
+        buildings,
+        dropped_below_min_area,
+        dropped_above_max_area,
+    ) = _filter_by_area(
+        buildings,
+        min_area_m2=min_area_m2,
+        max_area_m2=max_area_m2,
     )
 
-    return buildings
+    stats = EubuccoReadStats(
+        path=path,
+        raw_rows=raw_rows,
+        after_basic_clean=after_basic_clean,
+        after_aoi=after_aoi,
+        after_dissolve=after_dissolve,
+        after_construction_year=after_construction_year,
+        final_rows=len(buildings),
+        dropped_missing_or_empty_geometry=dropped_missing_or_empty_geometry,
+        repaired_invalid_geometry=repaired_invalid_geometry,
+        dropped_invalid_geometry=dropped_invalid_geometry,
+        dropped_outside_aoi=dropped_outside_aoi,
+        dissolved_rows_removed=dissolved_rows_removed,
+        dropped_missing_construction_year=dropped_missing_construction_year,
+        dropped_below_min_area=dropped_below_min_area,
+        dropped_above_max_area=dropped_above_max_area,
+    )
+
+    return EubuccoReadResult(buildings=buildings, stats=stats)
 
 
-def _clean_basic_eubucco(buildings: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+def _clean_basic_eubucco(
+    buildings: gpd.GeoDataFrame,
+) -> tuple[gpd.GeoDataFrame, int, int, int]:
     buildings = buildings.copy()
     buildings = coerce_numeric_columns(buildings)
 
-    geometry_column = buildings.geometry.name
+    geometry_col = buildings.geometry.name
 
-    before_count = len(buildings)
-
-    buildings = buildings[~buildings[geometry_column].isna()].copy()
-    buildings = buildings[~buildings.geometry.is_empty].copy()
-
-    dropped_empty_count = before_count - len(buildings)
-
-    if dropped_empty_count:
-        logger.info(
-            "Dropped %s EUBUCCO rows with missing or empty geometry.",
-            dropped_empty_count,
-        )
+    before = len(buildings)
+    missing_or_empty = buildings[geometry_col].isna() | buildings.geometry.is_empty
+    buildings = buildings[~missing_or_empty].copy()
+    dropped_missing_or_empty_geometry = before - len(buildings)
 
     invalid = ~buildings.geometry.is_valid
+    repaired_invalid_geometry = int(invalid.sum())
 
-    if invalid.any():
-        logger.warning(
-            "Repairing %s invalid EUBUCCO geometries with buffer(0).",
-            int(invalid.sum()),
-        )
-        buildings.loc[invalid, geometry_column] = buildings.loc[
-            invalid, geometry_column
+    if repaired_invalid_geometry:
+        buildings.loc[invalid, geometry_col] = buildings.loc[
+            invalid,
+            geometry_col,
         ].buffer(0)
 
-    before_valid_filter_count = len(buildings)
+    before_valid_filter = len(buildings)
 
     buildings = buildings[~buildings.geometry.is_empty].copy()
     buildings = buildings[buildings.geometry.is_valid].copy()
 
-    dropped_invalid_count = before_valid_filter_count - len(buildings)
+    dropped_invalid_geometry = before_valid_filter - len(buildings)
 
-    if dropped_invalid_count:
-        logger.warning(
-            "Dropped %s EUBUCCO rows that remained invalid or empty after repair.",
-            dropped_invalid_count,
-        )
-
-    return buildings
+    return (
+        buildings,
+        dropped_missing_or_empty_geometry,
+        repaired_invalid_geometry,
+        dropped_invalid_geometry,
+    )
 
 
 def _dissolve_building_parts_by_id(
     buildings: gpd.GeoDataFrame,
 ) -> gpd.GeoDataFrame:
-    """
-    Dissolve EUBUCCO building parts into single building records.
-
-    EUBUCCO IDs may contain part suffixes such as ``abc-1`` and ``abc-2``.
-    This function strips trailing ``-<number>`` suffixes, counts how many parts
-    each final building has, warns when attributes disagree across parts, and
-    dissolves geometries by the normalized ID.
-    """
     id_col = str(EubuccoField.id)
     part_count_col = str(BuildingField.PART_COUNT)
 
@@ -203,19 +228,11 @@ def _dissolve_building_parts_by_id(
         if column in buildings.columns and column not in {id_col, geometry_col}
     }
 
-    dissolved = buildings.dissolve(
+    return buildings.dissolve(
         by=id_col,
         as_index=False,
         aggfunc=aggfunc,
     )
-
-    logger.info(
-        "Dissolved %s EUBUCCO rows into %s building records.",
-        len(buildings),
-        len(dissolved),
-    )
-
-    return dissolved
 
 
 def _first_non_null(values: pd.Series):
@@ -262,13 +279,11 @@ def _warn_on_conflicting_part_attributes(
 
         examples = conflicting_ids.head(max_examples).index.tolist()
 
-        logger.warning(
-            "Column %r has conflicting values across building parts for %s "
-            "dissolved building IDs. Using configured aggregation. "
-            "Example IDs: %s",
-            column,
-            len(conflicting_ids),
-            examples,
+        warnings.warn(
+            f"Column {column!r} has conflicting values across building parts "
+            f"for {len(conflicting_ids)} dissolved building IDs. "
+            f"Using configured aggregation. Example IDs: {examples}",
+            stacklevel=2,
         )
 
 
@@ -284,19 +299,7 @@ def _filter_to_aoi(
 
     aoi_geometry = _union_geometries(aoi_gdf)
 
-    before_count = len(buildings)
-
-    buildings = buildings[buildings.geometry.intersects(aoi_geometry)].copy()
-
-    dropped_count = before_count - len(buildings)
-
-    if dropped_count:
-        logger.info(
-            "Dropped %s EUBUCCO rows outside AOI.",
-            dropped_count,
-        )
-
-    return buildings
+    return buildings[buildings.geometry.intersects(aoi_geometry)].copy()
 
 
 def _coerce_aoi_to_geodataframe(
@@ -341,12 +344,6 @@ def _coerce_aoi_to_geodataframe(
 
 
 def _union_geometries(gdf: gpd.GeoDataFrame) -> BaseGeometry:
-    """
-    Return a single geometry representing all AOI geometries.
-
-    GeoPandas/Shapely versions differ between ``union_all`` and ``unary_union``.
-    This helper supports both.
-    """
     geometry = gdf.geometry
 
     if hasattr(geometry, "union_all"):
@@ -360,15 +357,27 @@ def _filter_by_area(
     *,
     min_area_m2: float | None = None,
     max_area_m2: float | None = None,
-) -> gpd.GeoDataFrame:
+) -> tuple[gpd.GeoDataFrame, int, int]:
     buildings = buildings.copy()
-    area_column = str(BuildingField.AREA)
-    buildings[area_column] = buildings.geometry.area
+
+    area_col = str(BuildingField.AREA)
+    buildings[area_col] = buildings.geometry.area
+
+    dropped_below_min_area = 0
+    dropped_above_max_area = 0
 
     if min_area_m2 is not None:
-        buildings = buildings[buildings[area_column] >= min_area_m2]
+        before = len(buildings)
+        buildings = buildings[buildings[area_col] >= min_area_m2].copy()
+        dropped_below_min_area = before - len(buildings)
 
     if max_area_m2 is not None:
-        buildings = buildings[buildings[area_column] <= max_area_m2]
+        before = len(buildings)
+        buildings = buildings[buildings[area_col] <= max_area_m2].copy()
+        dropped_above_max_area = before - len(buildings)
 
-    return buildings.reset_index(drop=True)
+    return (
+        buildings.reset_index(drop=True),
+        dropped_below_min_area,
+        dropped_above_max_area,
+    )

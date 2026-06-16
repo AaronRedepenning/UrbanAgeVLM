@@ -1,10 +1,9 @@
-from __future__ import annotations
-
-import json
 import random
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
+
+from urban_vlm.dataset.jsonl import read_jsonl, write_jsonl
 
 
 def split_jsonl_by_group(
@@ -24,7 +23,7 @@ def split_jsonl_by_group(
     val_jsonl = Path(val_jsonl)
     test_jsonl = Path(test_jsonl)
 
-    records = _read_jsonl(input_jsonl)
+    records = read_jsonl(input_jsonl)
 
     grouped_records: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
@@ -66,9 +65,9 @@ def split_jsonl_by_group(
         else:
             raise RuntimeError(f"Group was not assigned to any split: {group}")
 
-    _write_jsonl(train_jsonl, split_records["train"])
-    _write_jsonl(val_jsonl, split_records["val"])
-    _write_jsonl(test_jsonl, split_records["test"])
+    write_jsonl(split_records["train"], train_jsonl)
+    write_jsonl(split_records["val"], val_jsonl)
+    write_jsonl(split_records["test"], test_jsonl)
 
     return {
         "group_key": group_key,
@@ -92,22 +91,3 @@ def split_jsonl_by_group(
             },
         },
     }
-
-
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    records = []
-
-    with path.open("r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                records.append(json.loads(line))
-
-    return records
-
-
-def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    with path.open("w", encoding="utf-8") as f:
-        for record in records:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
