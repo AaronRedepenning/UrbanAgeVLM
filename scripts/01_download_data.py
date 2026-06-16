@@ -10,6 +10,10 @@ def main(
         Path("configs/download.yaml"),
         "--config",
         "-c",
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True,
         help="Path to download config YAML.",
     ),
 ) -> None:

@@ -10,6 +10,10 @@ def main(
         Path("configs/preprocess.yaml"),
         "--config",
         "-c",
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True,
         help="Path to preprocess config YAML.",
     ),
 ) -> None:

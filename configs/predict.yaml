@@ -1,0 +1,39 @@
+task: building_decade
+
+model:
+  model_id: google/paligemma2-3b-mix-448
+  torch_dtype: bfloat16
+  device_map: auto
+  attn_implementation: null
+  trust_remote_code: false
+
+data:
+  train_jsonl: data/processed/single_building/train.jsonl
+  val_jsonl: data/processed/single_building/val.jsonl
+  test_jsonl: data/processed/single_building/test.jsonl
+  image_root: null
+  max_records: 10
+
+generation:
+  max_new_tokens: 32
+  do_sample: false
+  temperature: null
+  top_p: null
+  num_beams: 1
+
+lora:
+  enabled: true
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+training:
+  output_dir: outputs/checkpoints/paligemma-building-decade

@@ -1,22 +1,85 @@
+from typing import Any
+
 import torch
-from transformers import (
-    PaliGemmaForConditionalGeneration,
-    PaliGemmaProcessor,
-)
+from peft import LoraConfig, TaskType, get_peft_model
+from transformers import AutoProcessor, PaliGemmaForConditionalGeneration
+
+from urban_vlm.paligemma.config import PaliGemmaLoraConfig, PaliGemmaModelConfig
 
 
-def load_paligemma(
-    model_name: str = "google/paligemma2-3b-mix-448", train: bool = False
-):
-    processor = PaliGemmaProcessor.from_pretrained(model_name)
+def load_paligemma_processor(cfg: PaliGemmaModelConfig):
+    return AutoProcessor.from_pretrained(
+        cfg.model_id,
+        trust_remote_code=cfg.trust_remote_code,
+    )
+
+
+def load_paligemma_model(cfg: PaliGemmaModelConfig):
+    kwargs: dict[str, Any] = {
+        "trust_remote_code": cfg.trust_remote_code,
+    }
+
+    torch_dtype = _torch_dtype(cfg.torch_dtype)
+
+    if torch_dtype is not None:
+        kwargs["torch_dtype"] = torch_dtype
+
+    if cfg.device_map is not None:
+        kwargs["device_map"] = cfg.device_map
+
+    if cfg.attn_implementation is not None:
+        kwargs["attn_implementation"] = cfg.attn_implementation
 
     model = PaliGemmaForConditionalGeneration.from_pretrained(
-        model_name,
-        device_map="auto",
-        torch_dtype=torch.bfloat16,
+        cfg.model_id,
+        **kwargs,
     )
-    if not train:
-        model.eval()
-    # model.config.use_cache = True
 
-    return processor, model
+    # If device_map is None, Transformers loads the model on CPU.
+    # Move it to a single best device for simple notebooks/scripts.
+    if cfg.device_map is None:
+        model = model.to(_default_device())
+
+    return model
+
+
+def apply_lora_if_enabled(model, cfg: PaliGemmaLoraConfig):
+    if not cfg.enabled:
+        return model
+
+    peft_config = LoraConfig(
+        r=cfg.r,
+        lora_alpha=cfg.alpha,
+        lora_dropout=cfg.dropout,
+        target_modules=cfg.target_modules,
+        bias="none",
+        task_type=TaskType.CAUSAL_LM,
+    )
+
+    return get_peft_model(model, peft_config)
+
+
+def _torch_dtype(name: str):
+    if name == "auto":
+        return None
+
+    if name == "float32":
+        return torch.float32
+
+    if name == "float16":
+        return torch.float16
+
+    if name == "bfloat16":
+        return torch.bfloat16
+
+    raise ValueError(f"Unsupported torch dtype: {name}")
+
+
+def _default_device() -> torch.device:
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+
+    return torch.device("cpu")

@@ -1,135 +1,135 @@
-import json
-import re
 from pathlib import Path
+from typing import Any
 
 import torch
-from rich.console import Console
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    SpinnerColumn,
-    TaskProgressColumn,
-    TextColumn,
-    TimeElapsedColumn,
-)
+from rich.progress import track
 from torch.utils.data import DataLoader
 
-
-def collate_fn(batch: list[dict]) -> dict:
-    return {
-        "ids": [item["id"] for item in batch],
-        "images": [item["image"] for item in batch],
-        "prefixes": [item["prefix"] for item in batch],
-        "suffixes": [item["suffix"] for item in batch],
-        "records": [item["record"] for item in batch],
-    }
+from urban_vlm.dataset.jsonl import write_jsonl
+from urban_vlm.paligemma.config import PaliGemmaConfig
+from urban_vlm.paligemma.data import JsonlDataset, PaliGemmaCollator
+from urban_vlm.paligemma.model import load_paligemma_model, load_paligemma_processor
 
 
-@torch.inference_mode()
-def run_inference(
-    *,
-    model,
-    processor,
-    dataset,
-    output_jsonl: str | Path,
-    batch_size: int = 1,
-    max_new_tokens: int = 8,
-    do_sample: bool = False,
-) -> int:
-    output_jsonl = Path(output_jsonl)
-    output_jsonl.parent.mkdir(parents=True, exist_ok=True)
+class PaliGemmaPredictor:
+    def __init__(self, cfg: PaliGemmaConfig) -> None:
+        self.cfg = cfg
+        self.processor = load_paligemma_processor(cfg.model)
+        self.model = load_paligemma_model(cfg.model)
+        self.model.eval()
 
-    loader = DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=False,
-        collate_fn=collate_fn,
-    )
+    @torch.inference_mode()
+    def predict_jsonl(
+        self,
+        input_jsonl: str | Path,
+        *,
+        output_jsonl: str | Path | None = None,
+        batch_size: int | None = None,
+        show_progress: bool = True,
+    ) -> list[dict[str, Any]]:
+        dataset = JsonlDataset(
+            input_jsonl,
+            max_records=self.cfg.data.max_records,
+        )
 
-    total = len(loader)
-    count = 0
+        collator = PaliGemmaCollator(
+            processor=self.processor,
+            task=self.cfg.task,
+            image_root=self.cfg.data.image_root,
+            train=False,
+            return_metadata=True,
+        )
 
-    console = Console()
-    progress = Progress(
-        SpinnerColumn(),
-        TextColumn("[dim]{task.description}", justify="left"),
-        BarColumn(),
-        MofNCompleteColumn(),
-        TaskProgressColumn(),
-        TimeElapsedColumn(),
-        console=console,
-        transient=True,
-    )
+        dataloader = DataLoader(
+            dataset,
+            batch_size=batch_size or self.cfg.training.per_device_eval_batch_size,
+            shuffle=False,
+            collate_fn=collator,
+        )
 
-    with progress:
-        task_id = progress.add_task("Running PaliGemma inference", total=total)
+        predictions: list[dict[str, Any]] = []
 
-        with output_jsonl.open("w", encoding="utf-8") as f:
-            for batch in loader:
-                inputs = processor(
-                    text=batch["prefixes"],
-                    images=batch["images"],
-                    return_tensors="pt",
-                    padding=True,
-                ).to(model.device)
+        iterator = (
+            track(dataloader, description="Running PaliGemma inference")
+            if show_progress
+            else dataloader
+        )
 
-                generated_ids = model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    do_sample=do_sample,
-                    num_beams=1,
-                )
+        for batch in iterator:
+            model_inputs = batch["model_inputs"]
+            model_inputs = model_inputs.to(self.model.device)
 
-                input_token_len = inputs["input_ids"].shape[1]
-                new_token_ids = generated_ids[:, input_token_len:]
+            output_ids = self.model.generate(
+                **model_inputs,
+                **self._generation_kwargs(),
+            )
 
-                decoded = processor.batch_decode(
-                    new_token_ids,
-                    skip_special_tokens=True,
-                )
+            generated_ids = output_ids[:, model_inputs["input_ids"].shape[-1] :]
 
-                for record_id, target, raw_text in zip(
-                    batch["ids"],
-                    batch["suffixes"],
-                    decoded,
-                ):
-                    pred_decade = parse_decade(raw_text)
-                    target_decade = parse_decade(target)
+            texts = self.processor.batch_decode(
+                generated_ids,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
 
-                    out = {
-                        "id": record_id,
-                        "target": target,
-                        "target_decade": target_decade,
-                        "prediction_raw": raw_text,
-                        "prediction_decade": pred_decade,
+            for record, prompt, text in zip(
+                batch["records"],
+                batch["prompts"],
+                texts,
+                strict=True,
+            ):
+                predictions.append(
+                    {
+                        "id": record.get("id"),
+                        "image": record.get("image"),
+                        "crop": record.get("crop"),
+                        "task": str(self.cfg.task),
+                        "prompt": prompt,
+                        "prediction": text.strip(),
                     }
+                )
 
-                    f.write(json.dumps(out, ensure_ascii=False) + "\n")
-                    count += 1
-                    progress.update(task_id, completed=count)
+        if output_jsonl is not None:
+            write_jsonl(predictions, output_jsonl)
 
-    return count
+        return predictions
+
+    def _generation_kwargs(self) -> dict[str, Any]:
+        cfg = self.cfg.generation
+
+        kwargs: dict[str, Any] = {
+            "max_new_tokens": cfg.max_new_tokens,
+            "do_sample": cfg.do_sample,
+            "num_beams": cfg.num_beams,
+        }
+
+        if cfg.temperature is not None:
+            kwargs["temperature"] = cfg.temperature
+
+        if cfg.top_p is not None:
+            kwargs["top_p"] = cfg.top_p
+
+        return kwargs
 
 
-def parse_year(text: str) -> int | None:
-    match = re.search(r"\b(18|19|20)\d{2}\b", text)
+def predict_jsonl(
+    cfg: PaliGemmaConfig,
+    *,
+    input_jsonl: Path | None = None,
+    output_jsonl: Path | None = None,
+    batch_size: int | None = None,
+    show_progress: bool = True,
+) -> list[dict[str, Any]]:
+    input_path = input_jsonl or cfg.data.predict_jsonl or cfg.data.test_jsonl
 
-    if match is None:
-        return None
+    if input_path is None:
+        raise ValueError("No prediction JSONL provided.")
 
-    return int(match.group(0))
+    predictor = PaliGemmaPredictor(cfg)
 
-
-def parse_decade(text: str) -> int | None:
-    decade_match = re.search(r"\b((18|19|20)\d0)s?\b", text)
-
-    if decade_match is not None:
-        return int(decade_match.group(1))
-
-    year = parse_year(text)
-
-    if year is not None:
-        return year // 10 * 10
-
-    return None
+    return predictor.predict_jsonl(
+        input_path,
+        output_jsonl=output_jsonl,
+        batch_size=batch_size,
+        show_progress=show_progress,
+    )

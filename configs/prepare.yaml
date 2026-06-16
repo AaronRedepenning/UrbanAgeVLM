@@ -2,11 +2,11 @@ inputs:
   matched_buildings_file: data/interim/matched_buildings.parquet
 
 outputs:
-  all_jsonl: data/processed/single_buildings/all.jsonl
-  train_jsonl: data/processed/single_buildings/train.jsonl
-  val_jsonl: data/processed/single_buildings/val.jsonl
-  test_jsonl: data/processed/single_buildings/test.jsonl
-  summary_file: data/processed/single_buildings/summary.json
+  all_jsonl: data/processed/single_building/all.jsonl
+  train_jsonl: data/processed/single_building/train.jsonl
+  val_jsonl: data/processed/single_building/val.jsonl
+  test_jsonl: data/processed/single_building/test.jsonl
+  summary_file: data/processed/single_building/summary.json
 
 records:
   max_records: null

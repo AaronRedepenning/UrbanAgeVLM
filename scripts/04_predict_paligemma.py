@@ -2,22 +2,22 @@ from pathlib import Path
 
 import typer
 
-from urban_vlm.dataset import load_prepare_config, prepare_all
+from urban_vlm.paligemma import load_paligemma_config, predict_paligemma
 
 
 def main(
     config: Path = typer.Option(
-        Path("configs/prepare.yaml"),
+        Path("configs/evaluate.yaml"),
         "--config",
         "-c",
         exists=True,
         dir_okay=False,
         file_okay=True,
         readable=True,
-        help="Path to prepare config YAML.",
+        help="Path to evaluate config YAML.",
     ),
 ) -> None:
-    prepare_all(load_prepare_config(config))
+    predict_paligemma(load_paligemma_config(config))
 
 
 if __name__ == "__main__":
