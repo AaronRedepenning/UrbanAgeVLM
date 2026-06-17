@@ -18,12 +18,10 @@ def build_prompt(
 
     prompts = {
         PaliGemmaTask.BUILDING_YEAR: (
-            "what is the construction year of the center building? "
-            "four-digit year or unknown."
+            "what is the construction year of the center building?"
         ),
         PaliGemmaTask.BUILDING_DECADE: (
-            "what is the construction decade of the center building? "
-            "four-digit decade ending in 0 or unknown."
+            "what is the construction decade of the center building?"
         ),
     }
 

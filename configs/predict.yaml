@@ -11,7 +11,7 @@ data:
   train_jsonl: data/processed/single_building/train.jsonl
   val_jsonl: data/processed/single_building/val.jsonl
   test_jsonl: data/processed/single_building/test.jsonl
-  image_root: null
+  image_root: data/processed/single_building
   max_records: null
 
 generation:
