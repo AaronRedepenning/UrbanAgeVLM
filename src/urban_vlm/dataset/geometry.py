@@ -189,6 +189,9 @@ def crop_spec_from_pixel_bbox(
         image_height=image_height,
     )
 
+    if not bbox_is_inside_bounds(bbox, raw_bounds):
+        return None
+
     x_min, y_min, x_max, y_max = crop_bounds
 
     if x_max <= x_min or y_max <= y_min:
@@ -300,6 +303,21 @@ def bounds_are_inside_image(
     x_min, y_min, x_max, y_max = bounds
 
     return x_min >= 0 and y_min >= 0 and x_max <= image_width and y_max <= image_height
+
+
+def bbox_is_inside_bounds(
+    bbox: PixelBounds,
+    bounds: PixelBounds,
+) -> bool:
+    bbox_x_min, bbox_y_min, bbox_x_max, bbox_y_max = bbox
+    bounds_x_min, bounds_y_min, bounds_x_max, bounds_y_max = bounds
+
+    return (
+        bbox_x_min >= bounds_x_min
+        and bbox_y_min >= bounds_y_min
+        and bbox_x_max <= bounds_x_max
+        and bbox_y_max <= bounds_y_max
+    )
 
 
 def bounds_from_center(

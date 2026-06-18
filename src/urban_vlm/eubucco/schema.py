@@ -129,6 +129,8 @@ ALL_REQUIRED_FIELDS = [
     FIELDS.floors,
     FIELDS.construction_year,
     FIELDS.geometry,
+    FIELDS.geometry_source,
+    FIELDS.construction_year_source,
 ]
 
 NUMERIC_FIELDS = {
