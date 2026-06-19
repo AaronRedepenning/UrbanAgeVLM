@@ -1,12 +1,14 @@
+base_dir: data/processed
+
 inputs:
   matched_buildings_file: data/interim/matched_buildings.parquet
 
 outputs:
-  all_jsonl: data/processed/fixed_640/all.jsonl
-  train_jsonl: data/processed/fixed_640/train.jsonl
-  val_jsonl: data/processed/fixed_640/val.jsonl
-  test_jsonl: data/processed/fixed_640/test.jsonl
-  summary_file: data/processed/fixed_640/summary.json
+  all_jsonl: all.jsonl
+  train_jsonl: train.jsonl
+  val_jsonl: val.jsonl
+  test_jsonl: test.jsonl
+  summary_file: summary.json
 
 records:
   max_records: null
@@ -14,6 +16,7 @@ records:
   seed: 42
 
 crop:
+  name: fixed_640
   mode: fixed
 
   # Used by mode="percent" and mode="adaptive"
@@ -34,10 +37,10 @@ crop:
 
 crop_images:
   enabled: true
-  output_dir: data/processed/fixed_640/crops
+  output_dir: crops
   image_format: png
   overwrite: false
-  relative_to: data/processed/fixed_640
+  relative_to: .
 
 split:
   enabled: true

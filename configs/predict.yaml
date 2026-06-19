@@ -5,11 +5,13 @@ model:
   torch_dtype: bfloat16
   device_map: auto
 
+base_dir: data/processed/single_building
+
 data:
-  train_jsonl: data/processed/single_building/train.jsonl
-  val_jsonl: data/processed/single_building/val.jsonl
-  test_jsonl: data/processed/single_building/test.jsonl
-  image_root: data/processed/single_building
+  train_jsonl: train.jsonl
+  val_jsonl: val.jsonl
+  test_jsonl: test.jsonl
+  image_root: .
   max_records: null
 
 generation:

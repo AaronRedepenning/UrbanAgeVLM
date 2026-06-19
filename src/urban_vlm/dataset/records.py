@@ -94,6 +94,7 @@ def build_jsonl_record_result(
     record_id = _make_record_id(
         building_id=building_id,
         tile_id=str(tile_id) if tile_id is not None else None,
+        crop_name=crop.name or "single",
         crop_bounds=crop_spec.bounds,
     )
 
@@ -109,6 +110,7 @@ def build_jsonl_record_result(
         "image": raster.path,
         "crop": {
             "type": "single",
+            "name": crop.name or "single",
             "mode": crop.mode,
             "bounds": crop_spec.bounds,
             "width": crop_spec.width,
@@ -209,12 +211,14 @@ def _make_record_id(
     *,
     building_id: str,
     tile_id: str | None,
+    crop_name: str,
     crop_bounds: list[int],
 ) -> str:
     key = "|".join(
         [
             building_id,
             tile_id or "",
+            crop_name,
             ",".join(str(value) for value in crop_bounds),
         ]
     )

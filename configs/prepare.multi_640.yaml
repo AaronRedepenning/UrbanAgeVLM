@@ -15,25 +15,22 @@ records:
   shuffle: true
   seed: 42
 
-crop:
-  name: adaptive_640
-  mode: adaptive
+crops:
+  - name: fixed_640
+    mode: fixed
+    fixed_size_px: 640
+    square: true
+    drop_edge_crops: true
 
-  # Used by mode="percent" and mode="adaptive"
-  padding_ratio: 0.5
-  min_padding_px: 50 # 10 meters
-  max_padding_px: null
-
-  # Used by mode="fixed"
-  fixed_size_px: null
-
-  # Used by mode="adaptive"
-  adaptive_scale: 2.0
-  min_size_px: 100 # 20 meters
-  max_size_px: 640 # 128 meters
-
-  square: true
-  drop_edge_crops: true
+  - name: adaptive_640
+    mode: adaptive
+    padding_ratio: 0.5
+    min_padding_px: 50
+    adaptive_scale: 2.0
+    min_size_px: 100
+    max_size_px: 640
+    square: true
+    drop_edge_crops: true
 
 crop_images:
   enabled: true

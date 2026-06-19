@@ -32,6 +32,7 @@ class RecordsConfig(BaseModel):
 
 
 class CropConfig(BaseModel):
+    name: str | None = None
     mode: Literal["percent", "fixed", "adaptive"] = "adaptive"
 
     # Used by mode="percent" and mode="adaptive"
@@ -141,12 +142,80 @@ class SplitConfig(BaseModel):
 
 
 class PrepareDataConfig(BaseModel):
+    base_dir: Path | None = None
     inputs: PrepareInputsConfig
     outputs: PrepareOutputsConfig = Field(default_factory=PrepareOutputsConfig)
     records: RecordsConfig = Field(default_factory=RecordsConfig)
     crop: CropConfig = Field(default_factory=CropConfig)
+    crops: list[CropConfig] = Field(default_factory=list)
     crop_images: CropImageOutputConfig = Field(default_factory=CropImageOutputConfig)
     split: SplitConfig = Field(default_factory=SplitConfig)
+
+    @model_validator(mode="after")
+    def validate_crops(self) -> "PrepareDataConfig":
+        if self.crops and self.crop != CropConfig():
+            raise ValueError(
+                "Prepare config may specify either crop or crops, not both."
+            )
+
+        if self.crops:
+            crop_names = []
+            for index, crop in enumerate(self.crops, start=1):
+                if crop.name is None:
+                    crop.name = f"crop_{index}"
+                crop_names.append(crop.name)
+
+            if len(set(crop_names)) != len(crop_names):
+                raise ValueError(
+                    "Crop names must be unique when multiple crops are defined."
+                )
+        else:
+            if self.crop.name is None:
+                self.crop.name = "single"
+            self.crops = [self.crop]
+
+        return self
+
+    def _output_base_dir(self, crop_name: str | None) -> Path | None:
+        if self.base_dir is None:
+            if crop_name is not None:
+                return Path(crop_name)
+            return None
+
+        if crop_name is not None:
+            return self.base_dir / crop_name
+
+        return self.base_dir
+
+    def _resolve_path(self, path: Path | None, crop_name: str | None) -> Path | None:
+        if path is None:
+            return None
+
+        if path.is_absolute():
+            return path
+
+        base = self._output_base_dir(crop_name)
+        return path if base is None else base / path
+
+    def get_crop_outputs(self, crop: CropConfig) -> PrepareOutputsConfig:
+        crop_name = crop.name or "single"
+        return PrepareOutputsConfig(
+            all_jsonl=self._resolve_path(self.outputs.all_jsonl, crop_name),
+            train_jsonl=self._resolve_path(self.outputs.train_jsonl, crop_name),
+            val_jsonl=self._resolve_path(self.outputs.val_jsonl, crop_name),
+            test_jsonl=self._resolve_path(self.outputs.test_jsonl, crop_name),
+            summary_file=self._resolve_path(self.outputs.summary_file, crop_name),
+        )
+
+    def get_crop_image_config(self, crop: CropConfig) -> CropImageOutputConfig:
+        crop_name = crop.name or "single"
+        return CropImageOutputConfig(
+            enabled=self.crop_images.enabled,
+            output_dir=self._resolve_path(self.crop_images.output_dir, crop_name),
+            image_format=self.crop_images.image_format,
+            overwrite=self.crop_images.overwrite,
+            relative_to=self._resolve_path(self.crop_images.relative_to, crop_name),
+        )
 
 
 def load_prepare_config(path: str | Path) -> PrepareDataConfig:

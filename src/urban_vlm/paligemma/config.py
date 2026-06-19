@@ -2,7 +2,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from urban_vlm.utils import load_yaml
 
@@ -85,6 +85,7 @@ class PaliGemmaTrainingConfig(BaseModel):
 
 
 class PaliGemmaConfig(BaseModel):
+    base_dir: Path | None = None
     task: PaliGemmaTask = PaliGemmaTask.BUILDING_DECADE
     model: PaliGemmaModelConfig = Field(default_factory=PaliGemmaModelConfig)
     data: PaliGemmaDataConfig = Field(default_factory=PaliGemmaDataConfig)
@@ -93,6 +94,24 @@ class PaliGemmaConfig(BaseModel):
     )
     lora: PaliGemmaLoraConfig = Field(default_factory=PaliGemmaLoraConfig)
     training: PaliGemmaTrainingConfig = Field(default_factory=PaliGemmaTrainingConfig)
+
+    @model_validator(mode="after")
+    def validate_base_dir(self) -> "PaliGemmaConfig":
+        if self.base_dir is not None:
+            self._resolve_paths(self.base_dir)
+        return self
+
+    def _resolve_paths(self, base_dir: Path) -> None:
+        for path_attr in (
+            "train_jsonl",
+            "val_jsonl",
+            "test_jsonl",
+            "predict_jsonl",
+            "image_root",
+        ):
+            path_value = getattr(self.data, path_attr)
+            if path_value is not None and not path_value.is_absolute():
+                setattr(self.data, path_attr, base_dir / path_value)
 
 
 def load_paligemma_config(path: str | Path) -> PaliGemmaConfig:

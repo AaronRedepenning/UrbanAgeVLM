@@ -7,7 +7,7 @@ from urban_vlm.dataset import load_prepare_config, prepare_all
 
 def main(
     config: Path = typer.Option(
-        Path("configs/prepare.padded_50.yaml"),
+        Path("configs/prepare.multi_640.yaml"),
         "--config",
         "-c",
         exists=True,

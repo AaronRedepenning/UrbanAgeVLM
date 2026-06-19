@@ -18,6 +18,7 @@ class JsonlDataset(Dataset):
         max_records: int | None = None,
     ) -> None:
         records = read_jsonl(jsonl_path)
+
         if max_records is not None:
             records = records[:max_records]
 
