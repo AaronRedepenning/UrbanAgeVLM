@@ -2,22 +2,19 @@ from typing import Any
 
 import torch
 from peft import LoraConfig, TaskType, get_peft_model
-from transformers import AutoProcessor, PaliGemmaForConditionalGeneration
+from transformers import PaliGemmaForConditionalGeneration, PaliGemmaProcessor
 
 from urban_vlm.paligemma.config import PaliGemmaLoraConfig, PaliGemmaModelConfig
 
 
 def load_paligemma_processor(cfg: PaliGemmaModelConfig):
-    return AutoProcessor.from_pretrained(
+    return PaliGemmaProcessor.from_pretrained(
         cfg.model_id,
-        trust_remote_code=cfg.trust_remote_code,
     )
 
 
 def load_paligemma_model(cfg: PaliGemmaModelConfig):
-    kwargs: dict[str, Any] = {
-        "trust_remote_code": cfg.trust_remote_code,
-    }
+    kwargs: dict[str, Any] = {}
 
     torch_dtype = _torch_dtype(cfg.torch_dtype)
 
@@ -26,9 +23,6 @@ def load_paligemma_model(cfg: PaliGemmaModelConfig):
 
     if cfg.device_map is not None:
         kwargs["device_map"] = cfg.device_map
-
-    if cfg.attn_implementation is not None:
-        kwargs["attn_implementation"] = cfg.attn_implementation
 
     model = PaliGemmaForConditionalGeneration.from_pretrained(
         cfg.model_id,

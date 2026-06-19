@@ -4,8 +4,6 @@ model:
   model_id: google/paligemma2-3b-mix-448
   torch_dtype: bfloat16
   device_map: auto
-  attn_implementation: null
-  trust_remote_code: false
 
 data:
   train_jsonl: data/processed/single_building/train.jsonl

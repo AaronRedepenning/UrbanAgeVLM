@@ -19,8 +19,6 @@ class PaliGemmaModelConfig(BaseModel):
     model_id: str = "google/paligemma2-3b-mix-448"
     torch_dtype: TorchDtypeName = "bfloat16"
     device_map: str | None = "auto"
-    attn_implementation: str | None = None
-    trust_remote_code: bool = False
 
 
 class PaliGemmaDataConfig(BaseModel):
