@@ -10,12 +10,12 @@ requires-python = ">=3.12"
 
 # Keep this small: only things needed by the package/CLI/config code
 dependencies = [
-    "pillow>=12.2.0",
-    "pydantic>=2.13.4",
-    "pyyaml>=6.0.3",
-    "requests>=2.34.2",
-    "rich>=15.0.0",
-    "typer>=0.26.7",
+    "pillow>=10.4,<12",
+    "pydantic>=2.8,<2.13",
+    "pyyaml>=6.0.1",
+    "requests>=2.31",
+    "rich>=13,<14",
+    "typer>=0.12",
 ]
 
 [project.optional-dependencies]
@@ -47,17 +47,14 @@ viz = [
 
 # Training on pre-generated image crops + labels/manifest.
 train = [
-    "accelerate>=1.14.0",
-    "huggingface-hub>=1.16.1",
-    "pandas>=3.0.3",
-    "peft>=0.19.1",
-    "pyarrow>=24.0.0",
-    "transformers>=5.12.0",
-]
-
-torch = [
-    "torch>=2.9",
-    "torchvision>=0.24",
+    "accelerate>=1.0",
+    "huggingface-hub>=0.25",
+    "pandas>=2.2,<3",
+    "peft>=0.13",
+    "pyarrow>=16",
+    "torch>=2.6",
+    "torchvision>=0.21",
+    "transformers>=4.50",
 ]
 
 # Inference with a fine-tuned / adapter model.
@@ -76,7 +73,16 @@ infer = [
 # Optional quantized training/inference.
 # Keep separate because bitsandbytes is hardware/CUDA-sensitive.
 quant = [
-    "bitsandbytes>=0.49.2; platform_system == 'Linux'",
+    "bitsandbytes>=0.45; platform_system == 'Linux'",
+]
+
+colab = [
+    "accelerate>=1.0",
+    "huggingface-hub>=0.25",
+    "pandas>=2.2,<3",
+    "peft>=0.13",
+    "pyarrow>=16",
+    "transformers>=4.50",
 ]
 
 [dependency-groups]
