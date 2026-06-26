@@ -1,11 +1,13 @@
 task: building_decade
 
 model:
-  model_id: google/paligemma2-3b-mix-448
+  model_id: google/paligemma2-3b-pt-448
+  adapter_id: /constent/drive/MyDrive/models/1_exp/final
+  processor_id: /constent/drive/MyDrive/models/1_exp/final
   torch_dtype: bfloat16
   device_map: auto
 
-base_dir: data/processed/single_building
+base_dir: data/processed/adaptive_640
 
 data:
   train_jsonl: train.jsonl
@@ -20,20 +22,3 @@ generation:
   temperature: null
   top_p: null
   num_beams: 1
-
-lora:
-  enabled: true
-  r: 16
-  alpha: 32
-  dropout: 0.05
-  target_modules:
-    - q_proj
-    - k_proj
-    - v_proj
-    - o_proj
-    - gate_proj
-    - up_proj
-    - down_proj
-
-training:
-  output_dir: outputs/checkpoints/paligemma-building-decade

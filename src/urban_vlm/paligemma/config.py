@@ -17,6 +17,8 @@ TorchDtypeName = Literal["auto", "float32", "float16", "bfloat16"]
 
 class PaliGemmaModelConfig(BaseModel):
     model_id: str = "google/paligemma2-3b-mix-448"
+    adapter_id: str | None = None
+    processor_id: str | None = None
     torch_dtype: TorchDtypeName = "bfloat16"
     device_map: str | None = "auto"
 

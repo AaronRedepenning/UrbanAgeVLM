@@ -1,15 +1,16 @@
 from typing import Any
 
 import torch
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, PeftModel, TaskType, get_peft_model
 from transformers import PaliGemmaForConditionalGeneration, PaliGemmaProcessor
 
 from urban_vlm.paligemma.config import PaliGemmaLoraConfig, PaliGemmaModelConfig
 
 
 def load_paligemma_processor(cfg: PaliGemmaModelConfig):
+    processor_id = cfg.processor_id or cfg.model_id
     return PaliGemmaProcessor.from_pretrained(
-        cfg.model_id,
+        processor_id,
     )
 
 
@@ -24,10 +25,19 @@ def load_paligemma_model(cfg: PaliGemmaModelConfig):
     if cfg.device_map is not None:
         kwargs["device_map"] = cfg.device_map
 
-    model = PaliGemmaForConditionalGeneration.from_pretrained(
+    base_model = PaliGemmaForConditionalGeneration.from_pretrained(
         cfg.model_id,
         **kwargs,
     )
+
+    if cfg.adapter_id is not None:
+        model = PeftModel.from_pretrained(
+            base_model,
+            cfg.adapter_id,
+            is_trainable=False,
+        )
+    else:
+        model = base_model
 
     # If device_map is None, Transformers loads the model on CPU.
     # Move it to a single best device for simple notebooks/scripts.
