@@ -7,42 +7,98 @@ authors = [
     { name = "Aaron Redepenning", email = "aaronredepenning@live.com" }
 ]
 requires-python = ">=3.12"
+
+# Keep this small: only things needed by the package/CLI/config code
 dependencies = [
-    "accelerate>=1.14.0",
-    "bitsandbytes>=0.49.2",
-    "contextily>=1.7.0",
-    "folium>=0.20.0",
-    "geopandas>=1.1.3",
-    "huggingface-hub>=1.16.1",
-    "mapclassify>=2.10.0",
-    "matplotlib>=3.10.9",
-    "pandas>=3.0.3",
-    "peft>=0.19.1",
     "pillow>=12.2.0",
-    "pyarrow>=24.0.0",
     "pydantic>=2.13.4",
-    "pyogrio>=0.12.1",
-    "pyproj>=3.7.2",
     "pyyaml>=6.0.3",
-    "rasterio>=1.5.0",
     "requests>=2.34.2",
     "rich>=15.0.0",
+    "typer>=0.26.7",
+]
+
+[project.optional-dependencies]
+
+# Tabular manifests, labels, parquet/arrow data.
+data = [
+    "pandas>=3.0.3",
+    "pyarrow>=24.0.0",
+]
+
+# Heavy geospatial/data-prep stack.
+# Use this for DOP20 tiling, vector joins, raster cropping, map prep, etc.
+geo = [
+    "geopandas>=1.1.3",
+    "pyogrio>=0.12.1",
+    "pyproj>=3.7.2",
+    "rasterio>=1.5.0",
     "shapely>=2.1.2",
+]
+
+# Visualization / notebook map exploration.
+viz = [
+    "contextily>=1.7.0",
+    "folium>=0.20.0",
+    "mapclassify>=2.10.0",
+    "matplotlib>=3.10.9",
+    "xyzservices>=2026.3.0",
+]
+
+# Training on pre-generated image crops + labels/manifest.
+train = [
+    "accelerate>=1.14.0",
+    "huggingface-hub>=1.16.1",
+    "pandas>=3.0.3",
+    "peft>=0.19.1",
+    "pyarrow>=24.0.0",
+    "transformers>=5.12.0",
+]
+
+torch = [
+    "torch>=2.9",
+    "torchvision>=0.24",
+]
+
+# Inference with a fine-tuned / adapter model.
+# Keep peft here if you load LoRA adapters directly.
+infer = [
+    "accelerate>=1.14.0",
+    "huggingface-hub>=1.16.1",
+    "pandas>=3.0.3",
+    "peft>=0.19.1",
+    "pyarrow>=24.0.0",
     "torch>=2.12.0",
     "torchvision>=0.27.0",
     "transformers>=5.12.0",
-    "typer>=0.26.7",
-    "xyzservices>=2026.3.0",
 ]
+
+# Optional quantized training/inference.
+# Keep separate because bitsandbytes is hardware/CUDA-sensitive.
+quant = [
+    "bitsandbytes>=0.49.2; platform_system == 'Linux'",
+]
+
+[dependency-groups]
+
+# Local notebook environment.
+notebook = [
+    "ipykernel>=7.3.0",
+    "jupyterlab>=4.5.8",
+]
+
+# Local development tools.
+dev = [
+    { include-group = "notebook" },
+    "ruff>=0.15.16",
+    "ty>=0.0.46",
+]
+
+[tool.uv]
+# Prevent uv from installing dev by default in cloud runtimes.
+# Locally, use: uv sync --group dev
+default-groups = []
 
 [build-system]
 requires = ["uv_build>=0.11.19,<0.12.0"]
 build-backend = "uv_build"
-
-[dependency-groups]
-dev = [
-    "ipykernel>=7.3.0",
-    "jupyterlab>=4.5.8",
-    "ruff>=0.15.16",
-    "ty>=0.0.46",
-]
