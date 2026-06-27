@@ -12,3 +12,4 @@ wheels/
 # Generated files
 data/
 outputs/
+*.png

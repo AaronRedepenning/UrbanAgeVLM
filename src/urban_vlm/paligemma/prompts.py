@@ -1,9 +1,20 @@
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from urban_vlm.eubucco.schema import EubuccoField
 from urban_vlm.paligemma.config import PaliGemmaTask
+
+BUILDING_CLASSES = {
+    "before 1800": (-np.inf, 1799),
+    "1800-1850": (1800, 1850),
+    "1851-1900": (1851, 1900),
+    "1901-1950": (1901, 1950),
+    "1951-2000": (1951, 2000),
+    "2001-2015": (2001, 2015),
+    "after 2015": (2016, np.inf),
+}
 
 
 def build_prompt(
@@ -18,10 +29,13 @@ def build_prompt(
 
     prompts = {
         PaliGemmaTask.BUILDING_YEAR: (
-            "what is the construction year of the center building?"
+            "what year was the centered building constructed? answer with a four-digit year."
         ),
         PaliGemmaTask.BUILDING_DECADE: (
-            "what is the construction decade of the center building?"
+            "what decade was the centered building constructed in? answer with a decade such as 1970."
+        ),
+        PaliGemmaTask.BUILDING_CLASS: (
+            f"what construction period is the centered building from? choose one: {", ".join(BUILDING_CLASSES.keys())}."
         ),
     }
 
@@ -43,6 +57,9 @@ def build_target(record: dict[str, Any], task: PaliGemmaTask | str) -> str:
     if task == PaliGemmaTask.BUILDING_DECADE:
         return _format_year(attributes.get("construction_decade"))
 
+    if task == PaliGemmaTask.BUILDING_CLASS:
+        return _get_building_class(attributes.get("construction_decade"))
+
     raise ValueError(f"Unsupported PaliGemma task: {task}")
 
 
@@ -60,3 +77,16 @@ def _format_year(value: Any) -> str:
         return "unknown"
 
     return str(int(value))
+
+
+def _get_building_class(value: Any) -> str:
+    if value is None or pd.isna(value):
+        return "unknown"
+
+    value = int(value)
+
+    for key, (start, end) in BUILDING_CLASSES.items():
+        if value <= end:
+            return key
+
+    return "unknown"

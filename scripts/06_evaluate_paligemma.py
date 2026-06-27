@@ -31,12 +31,12 @@ def main(
     ),
 ) -> None:
     evaluate_prediction_jsonl(
-        "outputs/single_building/predictions.jsonl",
-        metrics_json="outputs/single_building/metrics.json",
-        per_record_metrics_jsonl="outputs/single_building/per_record_metrics.jsonl",
+        "outputs/adaptive_640-3_exp/predictions.jsonl",
+        metrics_json="outputs/adaptive_640-3_exp/metrics.json",
+        per_record_metrics_jsonl="outputs/adaptive_640-3_exp/per_record_metrics.jsonl",
     )
 
-    metrics_path = Path("outputs/single_building/per_record_metrics.jsonl")
+    metrics_path = Path("outputs/adaptive_640-3_exp/per_record_metrics.jsonl")
 
     df = read_jsonl(metrics_path)
 
@@ -128,7 +128,7 @@ def main(
     ax.legend(frameon=False)
 
     plt.tight_layout()
-    plt.savefig("outputs/single_building/per_record_metrics.png")
+    plt.savefig("outputs/adaptive_640-3_exp/per_record_metrics.png")
 
 
 if __name__ == "__main__":

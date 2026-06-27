@@ -1,9 +1,9 @@
-task: building_decade
+task: building_class
 
 model:
-  model_id: google/paligemma2-3b-pt-448
-  adapter_id: /constent/drive/MyDrive/models/1_exp/final
-  processor_id: /constent/drive/MyDrive/models/1_exp/final
+  model_id: google/paligemma2-3b-mix-448
+  adapter_id: null
+  processor_id: null
   torch_dtype: bfloat16
   device_map: auto
 
@@ -13,10 +13,12 @@ data:
   train_jsonl: train.jsonl
   val_jsonl: val.jsonl
   test_jsonl: test.jsonl
+  predict_jsonl: null
   image_root: .
-  max_records: null
+  max_records: 10
 
 generation:
+  output_jsonl: "outputs/predictions.jsonl"
   max_new_tokens: 32
   do_sample: false
   temperature: null

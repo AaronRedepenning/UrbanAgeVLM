@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from transformers import Trainer, TrainingArguments
@@ -51,7 +52,16 @@ def train_paligemma(cfg: PaliGemmaConfig) -> Trainer:
         return_metadata=False,
     )
 
-    args = _training_arguments(cfg, has_eval=has_eval)
+    # Wandb config
+    os.environ["WANDB_PROJECT"] = "paligemma-building-age"
+    os.environ["WANDB_LOG_MODEL"] = "false"
+    os.environ["WANDB_WATCH"] = "false"
+
+    args = _training_arguments(
+        cfg,
+        has_eval=has_eval,
+        run_name=_make_run_name(cfg),
+    )
 
     trainer = Trainer(
         model=model,
@@ -74,6 +84,7 @@ def _training_arguments(
     cfg: PaliGemmaConfig,
     *,
     has_eval: bool,
+    run_name: str | None = None,
 ) -> TrainingArguments:
     eval_strategy = "steps" if has_eval else "no"
 
@@ -87,6 +98,7 @@ def _training_arguments(
 
     return TrainingArguments(
         output_dir=str(cfg.training.output_dir),
+        run_name=run_name,
         num_train_epochs=cfg.training.num_train_epochs,
         remove_unused_columns=cfg.training.remove_unused_columns,
         per_device_train_batch_size=cfg.training.per_device_train_batch_size,
@@ -98,7 +110,7 @@ def _training_arguments(
         weight_decay=cfg.training.weight_decay,
         max_grad_norm=1.0,
         logging_steps=cfg.training.logging_steps,
-        optim="paged_adamw_8bit" if cfg.lora.enabled else "adamw_hf",
+        optim="adamw_torch",
         save_strategy="steps",
         save_steps=cfg.training.save_steps,
         save_total_limit=cfg.training.save_total_limit,
@@ -113,4 +125,17 @@ def _training_arguments(
         report_to=cfg.training.report_to,
         seed=cfg.training.seed,
         data_seed=cfg.training.seed,
+    )
+
+
+def _make_run_name(cfg: PaliGemmaConfig):
+    dataset_id = Path(cfg.base_dir).name
+    model_id = Path(cfg.model.model_id).name
+
+    return (
+        f"{cfg.task.name}"
+        f"__{model_id}"
+        f"__lr{cfg.training.learning_rate:g}"
+        f"__{dataset_id}"
+        f"__s{cfg.training.seed}"
     )

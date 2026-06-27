@@ -120,6 +120,7 @@ def predict_jsonl(
     show_progress: bool = True,
 ) -> list[dict[str, Any]]:
     input_path = input_jsonl or cfg.data.predict_jsonl or cfg.data.test_jsonl
+    output_path = output_jsonl or cfg.generation.output_jsonl
 
     if input_path is None:
         raise ValueError("No prediction JSONL provided.")
@@ -128,7 +129,7 @@ def predict_jsonl(
 
     return predictor.predict_jsonl(
         input_path,
-        output_jsonl=output_jsonl,
+        output_jsonl=output_path,
         batch_size=batch_size,
         show_progress=show_progress,
     )

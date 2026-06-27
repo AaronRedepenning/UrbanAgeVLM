@@ -10,6 +10,7 @@ from urban_vlm.utils import load_yaml
 class PaliGemmaTask(StrEnum):
     BUILDING_YEAR = "building_year"
     BUILDING_DECADE = "building_decade"
+    BUILDING_CLASS = "building_class"
 
 
 TorchDtypeName = Literal["auto", "float32", "float16", "bfloat16"]
@@ -40,6 +41,7 @@ class PaliGemmaDataConfig(BaseModel):
 
 
 class PaliGemmaGenerationConfig(BaseModel):
+    output_jsonl: Path = Path("outputs/predictions.jsonl")
     max_new_tokens: int = 32
     do_sample: bool = False
     temperature: float | None = None

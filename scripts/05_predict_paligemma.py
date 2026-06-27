@@ -7,7 +7,7 @@ from urban_vlm.paligemma import load_paligemma_config, predict_paligemma
 
 def main(
     config: Path = typer.Option(
-        Path("configs/predict.yaml"),
+        Path("configs/predict/pg2-3b-mix-448.yaml"),
         "--config",
         "-c",
         exists=True,
@@ -19,7 +19,6 @@ def main(
 ) -> None:
     predict_paligemma(
         load_paligemma_config(config),
-        output_jsonl=Path("outputs/single_building/predictions.jsonl"),
     )
 
 
