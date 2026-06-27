@@ -55,6 +55,7 @@ train = [
     "torch>=2.6",
     "torchvision>=0.21",
     "transformers>=4.50",
+    "wandb>=0.28.0",
 ]
 
 # Inference with a fine-tuned / adapter model.
@@ -68,6 +69,7 @@ infer = [
     "torch>=2.12.0",
     "torchvision>=0.27.0",
     "transformers>=5.12.0",
+    "wandb>=0.28.0",
 ]
 
 # Optional quantized training/inference.
@@ -83,6 +85,7 @@ colab = [
     "peft>=0.13",
     "pyarrow>=16",
     "transformers>=4.50",
+    "wandb>=0.28.0",
 ]
 
 [dependency-groups]
