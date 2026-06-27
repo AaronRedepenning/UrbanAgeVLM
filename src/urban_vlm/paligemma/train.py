@@ -54,7 +54,7 @@ def train_paligemma(cfg: PaliGemmaConfig) -> Trainer:
 
     # Wandb config
     os.environ["WANDB_PROJECT"] = "paligemma-building-age"
-    os.environ["WANDB_LOG_MODEL"] = "true"
+    os.environ["WANDB_LOG_MODEL"] = "false"
     os.environ["WANDB_WATCH"] = "false"
 
     args = _training_arguments(
