@@ -15,11 +15,11 @@ data:
   test_jsonl: test.jsonl
   predict_jsonl: null
   image_root: .
-  max_records: 10
+  max_records: null
 
 generation:
-  output_jsonl: "outputs/predictions.jsonl"
-  max_new_tokens: 32
+  output_jsonl: "outputs/adaptive_640__pg2-3b-mix-448__zeroshot/predictions.jsonl"
+  max_new_tokens: 16
   do_sample: false
   temperature: null
   top_p: null
