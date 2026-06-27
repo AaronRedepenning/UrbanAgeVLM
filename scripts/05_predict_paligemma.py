@@ -7,7 +7,7 @@ from urban_vlm.paligemma import load_paligemma_config, predict_paligemma
 
 def main(
     config: Path = typer.Option(
-        Path("configs/predict/pg2-3b-mix-448.yaml"),
+        Path("configs/predict/pg2-3b-pt-448.lora.yaml"),
         "--config",
         "-c",
         exists=True,

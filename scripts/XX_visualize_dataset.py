@@ -1,13 +1,13 @@
 from pathlib import Path
 
-import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import typer
 
+from urban_vlm.dataset import load_prepare_config
 from urban_vlm.dataset.jsonl import read_jsonl
-from urban_vlm.preprocess import load_preprocess_config
+from urban_vlm.eubucco.schema import EubuccoField
 
 
 # HELPERS
@@ -20,43 +20,29 @@ def style_ax(ax, title, xlabel="Construction year", ylabel="Number of buildings"
     ax.spines["right"].set_visible(False)
 
 
-# MAIN
-def main(
-    config: Path = typer.Option(
-        Path("configs/preprocess.yaml"),
-        "--config",
-        "-c",
-        exists=True,
-        dir_okay=False,
-        file_okay=True,
-        readable=True,
-        help="Path to preprocess config YAML.",
-    ),
-) -> None:
-    # cfg = load_preprocess_config(config)
-    type_col = "subtype"
-    year_col = "construction_year"
+def buildings_jsonl_to_dataframe(path: Path, attributes: list[str]) -> pd.DataFrame:
+    jsonl = read_jsonl(path)
 
-    # Read building years
-    buildings_jsonl = read_jsonl("data/processed/adaptive_640/all.jsonl")
-
+    # Only keep attributes we care about
     buildings = {
-        type_col: [
-            record["buildings"][0]["attributes"][type_col] for record in buildings_jsonl
-        ],
-        year_col: [
-            record["buildings"][0]["attributes"][year_col] for record in buildings_jsonl
-        ],
+        attribute: [record["buildings"][0]["attributes"][attribute] for record in jsonl]
+        for attribute in attributes
     }
-    buildings = pd.DataFrame.from_dict(buildings)
-    # buildings = gpd.read_parquet(cfg.outputs.cleaned_buildings_file)
 
+    return pd.DataFrame.from_dict(buildings)
+
+
+def create_histograms(
+    buildings: pd.DataFrame, *, out_dir: Path | None = None, show: bool = True
+) -> None:
     N = len(buildings)
-    median_year = buildings[year_col].median()
 
-    subtypes = sorted(buildings[type_col].unique())
+    subtypes = sorted(buildings[EubuccoField.subtype].unique())
     years = [
-        buildings.loc[buildings[type_col] == subtype, year_col] for subtype in subtypes
+        buildings.loc[
+            buildings[EubuccoField.subtype] == subtype, EubuccoField.construction_year
+        ]
+        for subtype in subtypes
     ]
 
     cmap = plt.get_cmap("tab20")
@@ -92,11 +78,12 @@ def main(
     )
 
     plt.tight_layout()
-    plt.savefig("year_histogram.png")
+    if out_dir:
+        plt.savefig(out_dir / "year_histogram.png")
 
     # 1. Histogram of building construction decade
-    start_decade = (buildings[year_col].min() // 10) * 10
-    end_decade = (buildings[year_col].max() // 10) * 10 + 10
+    start_decade = (buildings[EubuccoField.construction_year].min() // 10) * 10
+    end_decade = (buildings[EubuccoField.construction_year].max() // 10) * 10 + 10
 
     decade_bins = np.arange(start_decade, end_decade + 10, 10)
 
@@ -132,7 +119,8 @@ def main(
     )
 
     plt.tight_layout()
-    plt.savefig("decade_histogram.png")
+    if out_dir:
+        plt.savefig(out_dir / "decade_histogram.png")
 
     # 0. Histogram of building construction classes
     class_bins = [-np.inf, 1799, 1850, 1900, 1950, 2000, 2015, np.inf]
@@ -148,11 +136,14 @@ def main(
     ]
 
     buildings["year_class"] = pd.cut(
-        buildings[year_col], bins=class_bins, labels=class_labels, right=True
+        buildings[EubuccoField.construction_year],
+        bins=class_bins,
+        labels=class_labels,
+        right=True,
     )
 
     class_type_counts = pd.crosstab(
-        buildings["year_class"], buildings[type_col]
+        buildings["year_class"], buildings[EubuccoField.subtype]
     ).reindex(class_labels)
 
     fig, ax = plt.subplots(figsize=(11, 5))
@@ -189,7 +180,41 @@ def main(
     )
 
     plt.tight_layout()
-    plt.savefig("classes_histogram.png")
+    if out_dir:
+        plt.savefig(out_dir / "classes_histogram.png")
+
+
+# MAIN
+def main(
+    config: Path = typer.Option(
+        Path("configs/prepare.multi_640.yaml"),
+        "--config",
+        "-c",
+        exists=True,
+        dir_okay=False,
+        file_okay=True,
+        readable=True,
+        help="Path to preprocess config YAML.",
+    ),
+) -> None:
+    cfg = load_prepare_config(config)
+
+    for jsonl_file in [
+        cfg.outputs.all_jsonl,
+        cfg.outputs.train_jsonl,
+        cfg.outputs.val_jsonl,
+        cfg.outputs.test_jsonl,
+    ]:
+        # Read buildings from JSONL
+        buildings = buildings_jsonl_to_dataframe(
+            cfg.base_dir / cfg.crops[0].name / jsonl_file,
+            attributes=[EubuccoField.subtype, EubuccoField.construction_year],
+        )
+
+        # Create histograms
+        out_dir = Path("outputs/dataset") / jsonl_file.stem
+        out_dir.mkdir(parents=True, exist_ok=True)
+        create_histograms(buildings, out_dir=out_dir, show=False)
 
 
 if __name__ == "__main__":
