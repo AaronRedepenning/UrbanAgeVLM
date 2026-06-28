@@ -7,7 +7,9 @@ import typer
 
 from urban_vlm.dataset import load_prepare_config
 from urban_vlm.dataset.jsonl import read_jsonl
+from urban_vlm.dataset.schema import BuildingField
 from urban_vlm.eubucco.schema import EubuccoField
+from urban_vlm.paligemma.prompts import BUILDING_CLASSES
 
 
 # HELPERS
@@ -123,17 +125,9 @@ def create_histograms(
         plt.savefig(out_dir / "decade_histogram.png")
 
     # 0. Histogram of building construction classes
-    class_bins = [-np.inf, 1799, 1850, 1900, 1950, 2000, 2015, np.inf]
-
-    class_labels = [
-        "Before 1800",
-        "1800-1850",
-        "1851-1900",
-        "1901-1950",
-        "1951-2000",
-        "2001-2015",
-        "After 2015",
-    ]
+    class_bins = [end for _, (_, end) in BUILDING_CLASSES.items()]
+    class_bins.insert(0, -np.inf)
+    class_labels = list(BUILDING_CLASSES.keys())
 
     buildings["year_class"] = pd.cut(
         buildings[EubuccoField.construction_year],
@@ -208,7 +202,11 @@ def main(
         # Read buildings from JSONL
         buildings = buildings_jsonl_to_dataframe(
             cfg.base_dir / cfg.crops[0].name / jsonl_file,
-            attributes=[EubuccoField.subtype, EubuccoField.construction_year],
+            attributes=[
+                EubuccoField.subtype,
+                EubuccoField.construction_year,
+                BuildingField.AREA,
+            ],
         )
 
         # Create histograms

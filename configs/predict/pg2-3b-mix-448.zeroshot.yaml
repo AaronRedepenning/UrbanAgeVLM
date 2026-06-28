@@ -18,7 +18,7 @@ data:
   max_records: null
 
 generation:
-  output_jsonl: "outputs/building_class/adaptive_640/pg2-3b-mix-448__zeroshot/predictions.jsonl"
+  output_jsonl: "outputs/predict/building_class/adaptive_640/pg2-3b-mix-448__zeroshot/predictions.jsonl"
   max_new_tokens: 16
   do_sample: false
   temperature: null
