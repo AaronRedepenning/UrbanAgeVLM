@@ -45,6 +45,8 @@ def train_paligemma(cfg: PaliGemmaConfig) -> Trainer:
 
     if cfg.training.gradient_checkpointing:
         model.config.use_cache = False
+        if hasattr(model, "enable_input_require_grads"):
+            model.enable_input_require_grads()
 
     if hasattr(model, "print_trainable_parameters"):
         model.print_trainable_parameters()
