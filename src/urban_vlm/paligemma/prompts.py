@@ -7,11 +7,11 @@ from urban_vlm.eubucco.schema import EubuccoField
 from urban_vlm.paligemma.config import PaliGemmaTask
 
 BUILDING_CLASSES = {
-    "before 1900": (-np.inf, 1899),
-    "1900-1950": (1900, 1950),
-    "1951-2000": (1951, 2000),
-    "2001-2015": (2001, 2015),
-    "after 2015": (2016, np.inf),
+    "before 1850": (-np.inf, 1849),
+    "1850-1899": (1850, 1899),
+    "1900-1945": (1900, 1945),
+    "1946-2000": (1946, 2000),
+    "after 2000": (2001, np.inf),
 }
 
 
