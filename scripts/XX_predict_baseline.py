@@ -1,41 +1,45 @@
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import typer
 
-from urban_vlm.dataset.jsonl import read_jsonl, write_jsonl
+from urban_vlm.dataset.jsonl import read_jsonl
 from urban_vlm.eubucco.schema import EubuccoField
 from urban_vlm.paligemma import PaliGemmaConfig, load_paligemma_config
 from urban_vlm.paligemma.config import PaliGemmaTask
-from urban_vlm.paligemma.prompts import BUILDING_CLASSES, build_prompt, build_target
+from urban_vlm.paligemma.prompts import build_prompt, build_target
 
 
 # HELPERS
-def median_prediction(cfg: PaliGemmaConfig) -> str:
-    if cfg.task == PaliGemmaTask.BUILDING_CLASS:
-        idx = len(BUILDING_CLASSES) // 2
-        return list(BUILDING_CLASSES.keys())[idx]
-    else:
-        jsonl = read_jsonl(cfg.base_dir / "all.jsonl")
-        years = np.array(
-            [
-                record["buildings"][0]["attributes"][EubuccoField.construction_year]
-                for record in jsonl
-            ]
-        )
-        median = np.median(years)
+def constant_baseline_prediction(cfg: PaliGemmaConfig) -> str:
+    jsonl_file = cfg.data.predict_jsonl or cfg.data.test_jsonl
+    jsonl = read_jsonl(jsonl_file)
 
-        return (
-            str((median // 10) * 10)
-            if cfg.task == PaliGemmaTask.BUILDING_DECADE
-            else str(int(median))
-        )
+    if cfg.task == PaliGemmaTask.BUILDING_CLASS:
+        labels = [build_target(record, cfg.task) for record in jsonl]
+        return Counter(labels).most_common(1)[0][0]
+
+    years = np.array(
+        [
+            record["buildings"][0]["attributes"][EubuccoField.construction_year]
+            for record in jsonl
+        ]
+    )
+
+    median = np.median(years)
+
+    if cfg.task == PaliGemmaTask.BUILDING_DECADE:
+        return str(int((median // 10) * 10))
+
+    return str(int(median))
 
 
 def main(
     config: Path = typer.Option(
-        Path("configs/predict/pg2-3b-mix-448.zeroshot.yaml"),
+        Path("configs/predict/X__baseline.yaml"),
         "--config",
         "-c",
         exists=True,
@@ -48,8 +52,8 @@ def main(
     cfg = load_paligemma_config(config)
 
     # Get the median value prediction
-    median = median_prediction(cfg)
-    print(median)
+    baseline = constant_baseline_prediction(cfg)
+    print(f"Baseline prediction: {baseline}")
 
     # Create predictions
     records = read_jsonl(cfg.data.test_jsonl)
@@ -62,14 +66,14 @@ def main(
                 "task": str(cfg.task),
                 "prompt": build_prompt(record, cfg.task),
                 "target": build_target(record, cfg.task),
-                "prediction": median,
+                "prediction": baseline,
             }
         )
 
     # Write results
-    out_path = Path("outputs/predict/median/predictions.jsonl")
+    out_path = cfg.generation.output_csv
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    write_jsonl(predictions, out_path)
+    pd.DataFrame(predictions).to_csv(out_path)
 
 
 if __name__ == "__main__":

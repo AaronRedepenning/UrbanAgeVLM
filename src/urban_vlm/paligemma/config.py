@@ -41,7 +41,7 @@ class PaliGemmaDataConfig(BaseModel):
 
 
 class PaliGemmaGenerationConfig(BaseModel):
-    output_jsonl: Path = Path("outputs/predictions.jsonl")
+    output_csv: Path = Path("outputs/predictions.csv")
     max_new_tokens: int = 32
     do_sample: bool = False
     temperature: float | None = None

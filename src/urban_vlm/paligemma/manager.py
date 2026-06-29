@@ -14,7 +14,7 @@ def predict_paligemma(
     cfg: PaliGemmaConfig,
     *,
     input_jsonl: Path | None = None,
-    output_jsonl: Path | None = None,
+    output_csv: Path | None = None,
     batch_size: int | None = None,
     show_progress: bool = True,
 ) -> list[dict[str, Any]]:
@@ -29,7 +29,7 @@ def predict_paligemma(
     predictions = predict_jsonl(
         cfg,
         input_jsonl=input_jsonl,
-        output_jsonl=output_jsonl,
+        output_csv=output_csv,
         batch_size=batch_size,
         show_progress=show_progress,
     )
@@ -41,7 +41,7 @@ def predict_paligemma(
             console,
             cfg=cfg,
             predictions=predictions,
-            output_jsonl=output_jsonl,
+            output_csv=output_csv,
             elapsed_seconds=elapsed,
         )
 
@@ -53,7 +53,7 @@ def _print_prediction_summary(
     *,
     cfg: PaliGemmaConfig,
     predictions: list[dict[str, Any]],
-    output_jsonl: Path | None,
+    output_csv: Path | None,
     elapsed_seconds: float,
 ) -> None:
     table = Table(
@@ -68,7 +68,7 @@ def _print_prediction_summary(
     table.add_row("Task", str(cfg.task))
     table.add_row("Model", cfg.model.model_id)
     table.add_row("Predictions", f"{len(predictions):,}")
-    table.add_row("Output", "—" if output_jsonl is None else str(output_jsonl))
+    table.add_row("Output", "—" if output_csv is None else str(output_csv))
     table.add_row("Time", f"{elapsed_seconds:.1f}s")
 
     console.print()

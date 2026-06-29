@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import torch
 from rich.progress import track
 from torch.utils.data import DataLoader
@@ -23,7 +24,7 @@ class PaliGemmaPredictor:
         self,
         input_jsonl: str | Path,
         *,
-        output_jsonl: str | Path | None = None,
+        output_csv: str | Path | None = None,
         batch_size: int | None = None,
         show_progress: bool = True,
     ) -> list[dict[str, Any]]:
@@ -88,8 +89,8 @@ class PaliGemmaPredictor:
                     }
                 )
 
-        if output_jsonl is not None:
-            write_jsonl(predictions, output_jsonl)
+        if output_csv is not None:
+            pd.DataFrame(predictions).to_csv(output_csv)
 
         return predictions
 
@@ -115,12 +116,12 @@ def predict_jsonl(
     cfg: PaliGemmaConfig,
     *,
     input_jsonl: Path | None = None,
-    output_jsonl: Path | None = None,
+    output_csv: Path | None = None,
     batch_size: int | None = None,
     show_progress: bool = True,
 ) -> list[dict[str, Any]]:
     input_path = input_jsonl or cfg.data.predict_jsonl or cfg.data.test_jsonl
-    output_path = output_jsonl or cfg.generation.output_jsonl
+    output_csv = output_csv or cfg.generation.output_csv
 
     if input_path is None:
         raise ValueError("No prediction JSONL provided.")
@@ -129,7 +130,7 @@ def predict_jsonl(
 
     return predictor.predict_jsonl(
         input_path,
-        output_jsonl=output_path,
+        output_csv=output_csv,
         batch_size=batch_size,
         show_progress=show_progress,
     )

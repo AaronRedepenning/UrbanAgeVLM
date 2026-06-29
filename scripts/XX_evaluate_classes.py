@@ -7,7 +7,6 @@ import seaborn as sns
 import typer
 from sklearn.metrics import classification_report, confusion_matrix, f1_score
 
-from urban_vlm.dataset.jsonl import read_jsonl
 from urban_vlm.paligemma import load_paligemma_config
 from urban_vlm.paligemma.prompts import BUILDING_CLASSES
 
@@ -134,7 +133,7 @@ def plot_per_class_f1(report, output_path=None):
 # MAIN
 def main(
     config: Path = typer.Option(
-        Path("configs/predict/pg2-3b-pt-448.lora.yaml"),
+        Path("configs/predict/X__baseline.yaml"),
         "--config",
         "-c",
         exists=True,
@@ -145,27 +144,22 @@ def main(
     ),
 ) -> None:
     cfg = load_paligemma_config(config)
-    prediction_jsonl = (
-        # Path("outputs/predict/building_class/adaptive_640/median/predictions.jsonl")
-        cfg.generation.output_jsonl
-    )
+    predictions_csv = cfg.generation.output_csv
 
-    predictions = read_jsonl(
-        prediction_jsonl,
-    )
-    y_true = [prediction["target"] for prediction in predictions]
-    y_pred = [prediction["prediction"] for prediction in predictions]
+    predictions = pd.read_csv(predictions_csv)
+    y_true = predictions["target"]
+    y_pred = predictions["prediction"]
 
     # Compute confusion matrix
     cm_counts_df, cm_percent_df = compute_confusion_matrices(y_true, y_pred)
-    cm_counts_df.to_csv(prediction_jsonl.parent / "confusion_matrix_counts.csv")
-    cm_percent_df.to_csv(prediction_jsonl.parent / "confusion_matrix_percent.csv")
+    cm_counts_df.to_csv(predictions_csv.parent / "confusion_matrix_counts.csv")
+    cm_percent_df.to_csv(predictions_csv.parent / "confusion_matrix_percent.csv")
 
     plot_confusion_matrix(
         cm_counts_df,
         cm_percent_df,
         title="Confusion Matrix: Building Construction Period",
-        output_path=prediction_jsonl.parent / "confusion_matrix_percent.png",
+        output_path=predictions_csv.parent / "confusion_matrix_percent.png",
     )
 
     # Compute F1 scores
@@ -188,6 +182,10 @@ def main(
     print("Macro F1:", macro_f1)
     print("Weighted F1:", weighted_f1)
 
+    with open(predictions_csv.parent / "report.txt", mode="w+") as fh:
+        fh.write(f"macro_f1: {macro_f1}\n")
+        fh.write(f"weighted_f1: {weighted_f1}\n")
+
     report = classification_report(
         y_true,
         y_pred,
@@ -196,7 +194,7 @@ def main(
         zero_division=0,
     )
 
-    plot_per_class_f1(report, prediction_jsonl.parent / "per_class_f1.png")
+    plot_per_class_f1(report, predictions_csv.parent / "per_class_f1.png")
 
     # Show ALL plots
     plt.show()
