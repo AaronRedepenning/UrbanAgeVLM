@@ -14,6 +14,10 @@ from urban_vlm.paligemma.model import (
 
 
 def train_paligemma(cfg: PaliGemmaConfig) -> Trainer:
+    if torch.cuda.is_available():
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+
     if cfg.data.train_jsonl is None:
         raise ValueError("cfg.data.train_jsonl is required for training.")
 
@@ -96,9 +100,6 @@ def _training_arguments(
             "When load_best_model_at_end=True with step-based evaluation, "
             "save_steps must be a multiple of eval_steps."
         )
-
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
 
     return TrainingArguments(
         output_dir=str(cfg.training.output_dir),

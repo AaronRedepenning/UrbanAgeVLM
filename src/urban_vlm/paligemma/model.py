@@ -15,15 +15,20 @@ def load_paligemma_processor(cfg: PaliGemmaModelConfig):
 
 
 def load_paligemma_model(cfg: PaliGemmaModelConfig):
-    kwargs: dict[str, Any] = {}
-
     torch_dtype = _torch_dtype(cfg.torch_dtype)
+
+    kwargs: dict[str, Any] = {
+        "low_cpu_mem_usage": True,
+    }
 
     if torch_dtype is not None:
         kwargs["torch_dtype"] = torch_dtype
 
+    # Prefer device_map="auto" on CUDA instead of loading then model.to(cuda)
     if cfg.device_map is not None:
         kwargs["device_map"] = cfg.device_map
+    elif torch.cuda.is_available():
+        kwargs["device_map"] = "auto"
 
     base_model = PaliGemmaForConditionalGeneration.from_pretrained(
         cfg.model_id,
@@ -38,11 +43,6 @@ def load_paligemma_model(cfg: PaliGemmaModelConfig):
         )
     else:
         model = base_model
-
-    # If device_map is None, Transformers loads the model on CPU.
-    # Move it to a single best device for simple notebooks/scripts.
-    if cfg.device_map is None:
-        model = model.to(_default_device())
 
     return model
 
@@ -77,13 +77,3 @@ def _torch_dtype(name: str):
         return torch.bfloat16
 
     raise ValueError(f"Unsupported torch dtype: {name}")
-
-
-def _default_device() -> torch.device:
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-
-    return torch.device("cpu")

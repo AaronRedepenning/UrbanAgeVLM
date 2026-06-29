@@ -7,7 +7,7 @@ model:
   torch_dtype: bfloat16
   device_map: auto
 
-base_dir: /content/drive/MyDrive/datasets/adaptive_640
+base_dir: /content/datasets/adaptive_640
 
 data:
   train_jsonl: train.jsonl
