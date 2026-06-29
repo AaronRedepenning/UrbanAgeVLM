@@ -3365,7 +3365,6 @@ name = "urban-vlm"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "numpy" },
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -3387,7 +3386,6 @@ colab = [
     { name = "wandb" },
 ]
 data = [
-    { name = "numpy" },
     { name = "pandas" },
     { name = "pyarrow" },
 ]
@@ -3458,8 +3456,6 @@ requires-dist = [
     { name = "huggingface-hub", marker = "extra == 'train'", specifier = ">=0.25" },
     { name = "mapclassify", marker = "extra == 'viz'", specifier = ">=2.10.0" },
     { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.10.9" },
-    { name = "numpy", specifier = ">=2.4.6" },
-    { name = "numpy", marker = "extra == 'data'", specifier = ">=2.4.6" },
     { name = "pandas", marker = "extra == 'colab'", specifier = ">=3.0.3" },
     { name = "pandas", marker = "extra == 'data'", specifier = ">=3.0.3" },
     { name = "pandas", marker = "extra == 'infer'", specifier = ">=3.0.3" },

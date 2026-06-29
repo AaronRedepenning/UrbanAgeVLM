@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import torch
 from transformers import Trainer, TrainingArguments
 
 from urban_vlm.paligemma.config import PaliGemmaConfig
@@ -96,6 +97,9 @@ def _training_arguments(
             "save_steps must be a multiple of eval_steps."
         )
 
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
     return TrainingArguments(
         output_dir=str(cfg.training.output_dir),
         run_name=run_name,
@@ -110,12 +114,13 @@ def _training_arguments(
         weight_decay=cfg.training.weight_decay,
         max_grad_norm=1.0,
         logging_steps=cfg.training.logging_steps,
-        optim="adamw_torch",
+        optim="adamw_torch_fused",
         save_strategy="steps",
         save_steps=cfg.training.save_steps,
         save_total_limit=cfg.training.save_total_limit,
         fp16=cfg.training.fp16,
         bf16=cfg.training.bf16,
+        tf32=True,
         gradient_checkpointing=cfg.training.gradient_checkpointing,
         eval_strategy=eval_strategy,
         eval_steps=cfg.training.eval_steps if has_eval else None,
@@ -125,6 +130,8 @@ def _training_arguments(
         report_to=cfg.training.report_to,
         seed=cfg.training.seed,
         data_seed=cfg.training.seed,
+        dataloader_num_workers=4,
+        dataloader_pin_memory=True,
     )
 
 
