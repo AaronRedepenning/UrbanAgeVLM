@@ -15,8 +15,7 @@ from urban_vlm.paligemma.prompts import build_prompt, build_target
 
 # HELPERS
 def constant_baseline_prediction(cfg: PaliGemmaConfig) -> str:
-    jsonl_file = cfg.data.predict_jsonl or cfg.data.test_jsonl
-    jsonl = read_jsonl(jsonl_file)
+    jsonl = read_jsonl(cfg.data.predict_jsonl or cfg.data.test_jsonl)
 
     if cfg.task == PaliGemmaTask.BUILDING_CLASS:
         labels = [build_target(record, cfg.task) for record in jsonl]
@@ -56,7 +55,7 @@ def main(
     print(f"Baseline prediction: {baseline}")
 
     # Create predictions
-    records = read_jsonl(cfg.data.test_jsonl)
+    records = read_jsonl(cfg.data.predict_jsonl or cfg.data.test_jsonl)
     predictions: list[dict[str, Any]] = []
 
     for record in records:

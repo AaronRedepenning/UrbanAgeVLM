@@ -32,12 +32,12 @@ lora:
     # - down_proj
 
 training:
-  output_dir: /content/drive/MyDrive/models/1__pg2-3b-pt-448_fixed-640_lr3e-5_r16_s42
+  output_dir: /content/drive/MyDrive/models/2__pg2-3b-pt-448_fixed-640_lr1e-4_r16_s42
   num_train_epochs: 5
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
   gradient_accumulation_steps: 2
-  learning_rate: 3e-5
+  learning_rate: 1e-4
   weight_decay: 0.01
   warmup_ratio: 0.03
   logging_steps: 20
