@@ -17,7 +17,7 @@ def train_paligemma(cfg: PaliGemmaConfig) -> Trainer:
         raise ValueError("cfg.data.train_jsonl is required for training.")
 
     output_dir = Path(cfg.training.output_dir)
-    final_dir = output_dir / "final"
+    final_dir = output_dir / "checkpoint-final"
 
     train_dataset = JsonlDataset(
         cfg.data.train_jsonl,

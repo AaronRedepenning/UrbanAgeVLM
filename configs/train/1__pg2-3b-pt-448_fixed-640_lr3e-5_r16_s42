@@ -7,7 +7,7 @@ model:
   torch_dtype: bfloat16
   device_map: auto
 
-base_dir: /path/to/base
+base_dir: /content/drive/MyDrive/datasets/fixed_640
 
 data:
   train_jsonl: train.jsonl
@@ -32,7 +32,7 @@ lora:
     # - down_proj
 
 training:
-  output_dir: /path/to/output
+  output_dir: /content/drive/MyDrive/models/0__pg2-3b-pt-448_fixed-640_lr3e-5_r16_s42
   num_train_epochs: 5
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
