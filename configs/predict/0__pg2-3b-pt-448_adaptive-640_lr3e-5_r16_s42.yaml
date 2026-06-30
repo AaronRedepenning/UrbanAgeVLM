@@ -13,12 +13,12 @@ data:
   train_jsonl: train.jsonl
   val_jsonl: val.jsonl
   test_jsonl: test.jsonl
-  predict_jsonl: val.jsonl
+  predict_jsonl: null
   image_root: .
   max_records: null
 
 generation:
-  output_csv: /content/drive/MyDrive/models/0__pg2-3b-pt-448_adaptive-640_lr3e-5_r16_s42/checkpoint-final/predictions.csv
+  output_csv: /content/drive/MyDrive/models/0__pg2-3b-pt-448_adaptive-640_lr3e-5_r16_s42/checkpoint-final/predictions.test.csv
   max_new_tokens: 16
   do_sample: false
   temperature: null

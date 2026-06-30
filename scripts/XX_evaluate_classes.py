@@ -133,7 +133,7 @@ def plot_per_class_f1(report, output_path=None):
 # MAIN
 def main(
     config: Path = typer.Option(
-        Path("configs/predict/X__baseline.yaml"),
+        Path("configs/predict/2__pg2-3b-pt-448_fixed-640_lr1e-4_r16_s42.yaml"),
         "--config",
         "-c",
         exists=True,

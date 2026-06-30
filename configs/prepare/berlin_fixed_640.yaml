@@ -1,0 +1,38 @@
+base_dir: data/processed
+
+inputs:
+  matched_buildings_file: data/interim/berlin/matched_buildings.parquet
+
+outputs:
+  all_jsonl: all.jsonl
+  train_jsonl: train.jsonl
+  val_jsonl: val.jsonl
+  test_jsonl: test.jsonl
+  summary_file: summary.json
+
+records:
+  max_records: null
+  shuffle: true
+  seed: 42
+
+crop:
+  name: berlin_fixed_640
+  mode: fixed
+  fixed_size_px: 640 # 128 meters
+  square: true
+  drop_edge_crops: true
+
+crop_images:
+  enabled: true
+  output_dir: crops
+  image_format: png
+  overwrite: false
+  relative_to: .
+
+split:
+  enabled: true
+  group_key: image
+  train: 0.7
+  val: 0.15
+  test: 0.15
+  seed: 42

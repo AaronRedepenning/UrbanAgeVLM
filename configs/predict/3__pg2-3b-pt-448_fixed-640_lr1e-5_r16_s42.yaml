@@ -2,8 +2,8 @@ task: building_class
 
 model:
   model_id: google/paligemma2-3b-pt-448
-  adapter_id: /content/drive/MyDrive/models/0__pg2-3b-pt-448_fixed-640_lr3e-5_r16_s42/checkpoint-final
-  processor_id: /content/drive/MyDrive/models/0__pg2-3b-pt-448_fixed-640_lr3e-5_r16_s42/checkpoint-final
+  adapter_id: /content/drive/MyDrive/models/3__pg2-3b-pt-448_fixed-640_lr1e-5_r16_s42/checkpoint-final
+  processor_id: /content/drive/MyDrive/models/3__pg2-3b-pt-448_fixed-640_lr1e-5_r16_s42/checkpoint-final
   torch_dtype: bfloat16
   device_map: auto
 
@@ -18,7 +18,7 @@ data:
   max_records: null
 
 generation:
-  output_csv: /content/drive/MyDrive/models/1__pg2-3b-pt-448_fixed-640_lr3e-5_r16_s42/checkpoint-final/predictions.test.csv
+  output_csv: /content/drive/MyDrive/models/3__pg2-3b-pt-448_fixed-640_lr1e-5_r16_s42/checkpoint-final/predictions.test.csv
   max_new_tokens: 16
   do_sample: false
   temperature: null

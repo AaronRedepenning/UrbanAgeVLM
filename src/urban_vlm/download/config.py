@@ -38,6 +38,12 @@ class BayernDownloadConfig(BaseModel):
         return value
 
 
+class BerlinDownloadConfig(BaseModel):
+    enabled: bool = True
+    out_dir: Path = Path("data/raw/berlin/dop_2025_fruehjahr")
+    atom_url: HttpUrl
+
+
 class DownloadOptionsConfig(BaseModel):
     overwrite: bool = False
     timeout_seconds: int = 60
@@ -49,6 +55,7 @@ class DownloadConfig(BaseModel):
     nuts: NutsDownloadConfig
     eubucco: EubuccoDownloadConfig
     bayern: BayernDownloadConfig
+    berlin: BerlinDownloadConfig
     download: DownloadOptionsConfig = Field(default_factory=DownloadOptionsConfig)
 
 

@@ -7,18 +7,18 @@ model:
   torch_dtype: bfloat16
   device_map: auto
 
-base_dir: data/processed/fixed_640
+base_dir: /content/datasets/fixed_640
 
 data:
   train_jsonl: train.jsonl
   val_jsonl: val.jsonl
   test_jsonl: test.jsonl
-  predict_jsonl: val.jsonl
+  predict_jsonl: null
   image_root: .
   max_records: null
 
 generation:
-  output_csv: /content/drive/MyDrive/models/X__pg2-3b-mix-448_fixed-640/predictions.csv
+  output_csv: /content/drive/MyDrive/models/X__pg2-3b-mix-448_fixed-640/predictions.test.csv
   max_new_tokens: 16
   do_sample: false
   temperature: null

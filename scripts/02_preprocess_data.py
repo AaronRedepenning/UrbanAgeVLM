@@ -7,7 +7,7 @@ from urban_vlm.preprocess import load_preprocess_config, preprocess_all
 
 def main(
     config: Path = typer.Option(
-        Path("configs/preprocess.yaml"),
+        Path("configs/preprocess/bayern.yaml"),
         "--config",
         "-c",
         exists=True,

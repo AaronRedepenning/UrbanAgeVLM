@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from urban_vlm.download.bayern import download_bayern
+from urban_vlm.download.berlin import download_berlin
 from urban_vlm.download.config import DownloadConfig
 from urban_vlm.download.eubucco import download_eubucco
 from urban_vlm.download.nuts import download_nuts
@@ -170,6 +171,19 @@ def download_all(cfg: DownloadConfig) -> None:
             show_progress=show_progress,
             download=lambda: download_bayern(
                 cfg.bayern,
+                cfg.download,
+            ),
+        )
+    )
+
+    summaries.append(
+        _run_step(
+            console,
+            name="Berlin",
+            enabled=cfg.berlin.enabled,
+            show_progress=show_progress,
+            download=lambda: download_berlin(
+                cfg.berlin,
                 cfg.download,
             ),
         )

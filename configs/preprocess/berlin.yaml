@@ -1,0 +1,21 @@
+eubucco:
+  input_dir: data/raw/eubucco
+  file_glob: "**/DE30.parquet"
+  dissolve_by_id: false
+  require_construction_year: true
+  min_area_m2: 20
+  max_area_m2: null
+
+tiles:
+  input_dir: data/raw/berlin/dop_2025_fruehjahr
+  file_glob: "**/*.jp2"
+
+match:
+  strategy: centroid_within_tile
+  keep_unmatched: false
+  target_crs: null
+
+outputs:
+  cleaned_buildings_file: data/interim/berlin/clean_buildings.parquet
+  tile_index_file: data/interim/berlin/tile_index.parquet
+  matched_buildings_file: data/interim/berlin/matched_buildings.parquet

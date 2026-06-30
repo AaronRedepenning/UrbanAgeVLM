@@ -1,25 +1,21 @@
-task: building_decade
+task: building_class
 
 model:
   model_id: google/paligemma2-3b-pt-448
+  adapter_id: null
+  processor_id: null
   torch_dtype: bfloat16
   device_map: auto
 
-base_dir: /path/to
+base_dir: /content/datasets/fixed_640
 
 data:
   train_jsonl: train.jsonl
   val_jsonl: val.jsonl
   test_jsonl: test.jsonl
+  predict_jsonl: null
   image_root: .
   max_records: null
-
-generation:
-  max_new_tokens: 32
-  do_sample: false
-  temperature: null
-  top_p: null
-  num_beams: 1
 
 lora:
   enabled: true
@@ -31,26 +27,26 @@ lora:
     - k_proj
     - v_proj
     - o_proj
-    - gate_proj
-    - up_proj
-    - down_proj
+    # - gate_proj
+    # - up_proj
+    # - down_proj
 
 training:
-  output_dir: /path/to/output
+  output_dir: /content/drive/MyDrive/models/3__pg2-3b-pt-448_fixed-640_lr1e-5_r16_s42
   num_train_epochs: 5
-  per_device_train_batch_size: 2
-  per_device_eval_batch_size: 2
-  gradient_accumulation_steps: 8
-  learning_rate: 2e-4
+  per_device_train_batch_size: 8
+  per_device_eval_batch_size: 8
+  gradient_accumulation_steps: 2
+  learning_rate: 1e-5
   weight_decay: 0.01
-  warmup_ratio: 0.05
+  warmup_ratio: 0.03
   logging_steps: 20
   save_steps: 100
   eval_steps: 100
-  save_total_limit: 2
+  save_total_limit: 20
   bf16: true
   fp16: false
   gradient_checkpointing: true
   remove_unused_columns: false
-  report_to: []
+  report_to: ["wandb"]
   seed: 42

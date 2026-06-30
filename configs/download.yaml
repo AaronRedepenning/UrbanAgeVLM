@@ -27,6 +27,11 @@ bayern:
     - https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09775129.meta4 # Illertissen
     - https://geodaten.bayern.de/odd/a/dop20/meta/metalink/09775135.meta4 # Neu-Ulm
 
+berlin:
+  enabled: true
+  out_dir: data/raw/berlin/dop_2025_fruehjahr
+  atom_url: https://gdi.berlin.de/data/dop_2025_fruehjahr/atom/
+
 download:
   overwrite: false
   timeout_seconds: 60

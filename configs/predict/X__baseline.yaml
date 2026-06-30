@@ -18,7 +18,7 @@ data:
   max_records: null
 
 generation:
-  output_csv: outputs/predict/baseline/predictions.csv
+  output_csv: outputs/predict/baseline/test/predictions.csv
   max_new_tokens: 16
   do_sample: false
   temperature: null
