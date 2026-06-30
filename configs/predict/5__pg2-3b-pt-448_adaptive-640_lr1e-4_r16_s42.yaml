@@ -1,0 +1,26 @@
+task: building_class
+
+model:
+  model_id: google/paligemma2-3b-pt-448
+  adapter_id: /content/drive/MyDrive/models/5__pg2-3b-pt-448_adaptive-640_lr1e-4_r16_s42/checkpoint-final
+  processor_id: /content/drive/MyDrive/models/5__pg2-3b-pt-448_adaptive-640_lr1e-4_r16_s42/checkpoint-final
+  torch_dtype: bfloat16
+  device_map: auto
+
+base_dir: /content/datasets/adaptive_640
+
+data:
+  train_jsonl: train.jsonl
+  val_jsonl: val.jsonl
+  test_jsonl: test.jsonl
+  predict_jsonl: null
+  image_root: .
+  max_records: null
+
+generation:
+  output_csv: /content/drive/MyDrive/models/5__pg2-3b-pt-448_adaptive-640_lr1e-4_r16_s42/checkpoint-final/predictions.test.csv
+  max_new_tokens: 16
+  do_sample: false
+  temperature: null
+  top_p: null
+  num_beams: 1

@@ -18,7 +18,7 @@ data:
   max_records: null
 
 generation:
-  output_csv: /content/drive/MyDrive/models/4__pg2-3b-pt-224_fixed-640_lr1e-4_r16_s42/checkpoint-final/predictions.test.csv
+  output_csv: outputs/predict/4__pg2-3b-pt-224_fixed-640_lr1e-4_r16_s42/test/predictions.csv
   max_new_tokens: 16
   do_sample: false
   temperature: null
